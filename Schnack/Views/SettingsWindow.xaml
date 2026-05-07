@@ -1,0 +1,218 @@
+<Window x:Class="Schnack.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Schnack.Views"
+        Title="Schnack – Einstellungen"
+        Height="720" Width="520"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <local:BoolToBrushConverter x:Key="ApiKeyStatusBrushConverter"
+                                    TrueBrush="Green" FalseBrush="OrangeRed"/>
+    </Window.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="20">
+
+            <!-- ── Backend-Auswahl ─────────────────────────────────── -->
+            <TextBlock Text="Backend" FontWeight="SemiBold" Margin="0,0,0,6"/>
+            <Border BorderBrush="#DDD" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,14">
+                <StackPanel>
+                    <RadioButton Content="OpenAI  (Cloud-STT + OpenAI Chat)"
+                                 IsChecked="{Binding IsOpenAiBackend}"
+                                 Margin="0,0,0,4"/>
+                    <RadioButton Content="Claude  (lokales Whisper + Anthropic Claude)"
+                                 IsChecked="{Binding IsClaudeBackend}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ── OpenAI-Backend-Einstellungen ──────────────────── -->
+            <StackPanel Visibility="{Binding IsOpenAiBackend, Converter={StaticResource BoolToVis}}">
+                <TextBlock Text="OpenAI" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <Grid Margin="0,0,0,14">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="180"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="STT-Modell:" VerticalAlignment="Center" Margin="0,0,0,10"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,10"
+                              ItemsSource="{Binding OpenAiSttModelOptions}"
+                              SelectedItem="{Binding OpenAiTranscriptionModel}"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Chat-Modell:" VerticalAlignment="Center"/>
+                    <TextBox Grid.Row="1" Grid.Column="1"
+                             Text="{Binding OpenAiChatModel, UpdateSourceTrigger=PropertyChanged}"/>
+                </Grid>
+            </StackPanel>
+
+            <!-- ── Claude-Backend-Einstellungen ──────────────────── -->
+            <StackPanel Visibility="{Binding IsClaudeBackend, Converter={StaticResource BoolToVis}}">
+                <TextBlock Text="Claude (Anthropic)" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <Grid Margin="0,0,0,10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="180"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Claude-Modell:" VerticalAlignment="Center" Margin="0,0,0,10"/>
+                    <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,10"
+                             Text="{Binding ClaudeModel, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Max Tokens:" VerticalAlignment="Center"/>
+                    <TextBox Grid.Row="1" Grid.Column="1"
+                             Text="{Binding ClaudeMaxTokens, UpdateSourceTrigger=PropertyChanged}"/>
+                </Grid>
+
+                <TextBlock Text="Whisper (lokal)" FontWeight="SemiBold" Margin="0,8,0,6"/>
+                <Grid Margin="0,0,0,6">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="180"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Modell:" VerticalAlignment="Center" Margin="0,0,0,8"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,8"
+                              ItemsSource="{Binding WhisperModelOptions}"
+                              SelectedItem="{Binding WhisperModel}"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="GPU nutzen (CUDA):" VerticalAlignment="Center" Margin="0,0,0,8"/>
+                    <CheckBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,8" VerticalAlignment="Center"
+                              IsChecked="{Binding WhisperUseGpu}"/>
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Modell-Status:" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal">
+                        <TextBlock Text="{Binding WhisperDownloadStatus}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <Button Content="Herunterladen"
+                                Command="{Binding DownloadWhisperModelCommand}"/>
+                    </StackPanel>
+                </Grid>
+                <ProgressBar Value="{Binding WhisperDownloadProgress, Mode=OneWay}" Maximum="100" Height="6"
+                             Margin="0,0,0,14"
+                             Visibility="{Binding IsDownloading, Converter={StaticResource BoolToVis}}"/>
+            </StackPanel>
+
+            <!-- ── Globale Einstellungen ──────────────────────────── -->
+            <TextBlock Text="Allgemein" FontWeight="SemiBold" Margin="0,0,0,6"/>
+            <Grid Margin="0,0,0,10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="180"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Standard-Modus:" VerticalAlignment="Center" Margin="0,0,0,10"/>
+                <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,10"
+                          ItemsSource="{Binding ModeOptions}"
+                          SelectedItem="{Binding SelectedMode}"/>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Hotkey:" VerticalAlignment="Center" Margin="0,0,0,10"/>
+                <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,10"
+                         Text="{Binding Hotkey, UpdateSourceTrigger=PropertyChanged}"/>
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Mikrofon:" VerticalAlignment="Center" Margin="0,0,0,10"/>
+                <ComboBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,10"
+                          ItemsSource="{Binding MicrophoneOptions}"
+                          DisplayMemberPath="Name"
+                          SelectedItem="{Binding SelectedMicrophone}"/>
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="Clipboard sichern:" VerticalAlignment="Center" Margin="0,0,0,10"/>
+                <CheckBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,10" VerticalAlignment="Center"
+                          IsChecked="{Binding RestoreClipboard}"/>
+
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="Einfügen ohne Clipboard:" VerticalAlignment="Top" Margin="0,2,0,10"/>
+                <StackPanel Grid.Row="4" Grid.Column="1" Margin="0,0,0,10">
+                    <CheckBox VerticalAlignment="Center" IsChecked="{Binding PreferClipboardFreeInsertion}"
+                              Content="Unicode-Tastatur (empfohlen)"/>
+                    <TextBlock Margin="0,4,0,0" FontSize="11" Foreground="Gray" TextWrapping="Wrap"
+                               Text="Aus: per Zwischenablage + Strg+V."/>
+                </StackPanel>
+
+                <TextBlock Grid.Row="5" Grid.Column="0" Text="Debug-Logging:" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                <StackPanel Grid.Row="5" Grid.Column="1">
+                    <CheckBox VerticalAlignment="Center" IsChecked="{Binding DebugLogging}"
+                              Content="Ausführliches Log (keine Transkripte)"/>
+                    <TextBlock Margin="0,4,0,0" FontSize="11" Foreground="Gray" TextWrapping="Wrap"
+                               Text="Alternativ: SCHNACK_DEBUG=1 als Umgebungsvariable."/>
+                </StackPanel>
+            </Grid>
+
+            <!-- ── API-Keys ───────────────────────────────────────── -->
+            <TextBlock Text="API-Keys" FontWeight="SemiBold" Margin="0,0,0,6"/>
+            <Grid Margin="0,0,0,6">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="180"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Anthropic (Claude):" VerticalAlignment="Top" Margin="0,2,0,10"/>
+                <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <PasswordBox x:Name="AnthropicApiKeyBox" Grid.Column="0" Margin="0,0,6,0"/>
+                        <Button Grid.Column="1" Content="Speichern" Click="OnSaveAnthropicApiKeyClick"/>
+                    </Grid>
+                    <TextBlock Margin="0,4,0,0" FontSize="11"
+                               Text="{Binding AnthropicApiKeyStatus}"
+                               Foreground="{Binding IsAnthropicApiKeyStored, Converter={StaticResource ApiKeyStatusBrushConverter}}"/>
+                </StackPanel>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="OpenAI (STT/Chat):" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                <StackPanel Grid.Row="1" Grid.Column="1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <PasswordBox x:Name="OpenAiApiKeyBox" Grid.Column="0" Margin="0,0,6,0"/>
+                        <Button Grid.Column="1" Content="Speichern" Click="OnSaveOpenAiApiKeyClick"/>
+                    </Grid>
+                    <TextBlock Margin="0,4,0,0" FontSize="11"
+                               Text="{Binding OpenAiApiKeyStatus}"
+                               Foreground="{Binding IsOpenAiApiKeyStored, Converter={StaticResource ApiKeyStatusBrushConverter}}"/>
+                </StackPanel>
+            </Grid>
+
+            <TextBlock Margin="0,6,0,14"
+                       TextWrapping="Wrap" Foreground="Gray" FontSize="11"
+                       Text="Keys werden DPAPI-verschlüsselt gespeichert. Alternativ: ANTHROPIC_API_KEY / OPENAI_API_KEY als Umgebungsvariablen. Anthropic-Modelle: docs.anthropic.com."/>
+
+            <!-- ── Buttons ────────────────────────────────────────── -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Abbrechen" Width="80" Margin="0,0,8,0" IsCancel="True" Click="OnCancelClick"/>
+                <Button Content="Speichern" Width="80" IsDefault="True" Click="OnSaveClick"/>
+            </StackPanel>
+
+        </StackPanel>
+    </ScrollViewer>
+</Window>

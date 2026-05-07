@@ -1,0 +1,9 @@
+<Application x:Class="Schnack.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             ShutdownMode="OnExplicitShutdown">
+    <Application.Resources>
+        <!-- Warmes Off-White passend zum Schnack-Logo-Hintergrund; ggf. an tatsächlichen Logo-Farbton anpassen -->
+        <SolidColorBrush x:Key="SchnackBackgroundBrush" Color="#FAF7F2"/>
+    </Application.Resources>
+</Application>

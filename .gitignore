@@ -1,0 +1,16 @@
+bin/
+obj/
+*.user
+*.suo
+appsettings.local.json
+secrets.dat
+openai-secrets.dat
+models/
+publish/
+releases/
+*.wav
+logs/
+*.log
+.env
+.vs/
+.claude/settings.local.json

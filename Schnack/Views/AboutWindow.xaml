@@ -1,0 +1,47 @@
+<Window x:Class="Schnack.Views.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Über Schnack"
+        MinWidth="400" MinHeight="360"
+        Width="440" Height="400"
+        SizeToContent="Manual"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResizeWithGrip"
+        Background="{StaticResource SchnackBackgroundBrush}">
+
+    <Grid Margin="28">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Image Grid.Row="0"
+               Source="/Resources/Schnack_Logo.png"
+               MaxHeight="140"
+               MaxWidth="320"
+               Stretch="Uniform"
+               HorizontalAlignment="Center"
+               Margin="0,0,0,20"/>
+
+        <StackPanel Grid.Row="1" HorizontalAlignment="Center">
+            <TextBlock Text="Schnack" FontSize="22" FontWeight="Bold"
+                       HorizontalAlignment="Center" Margin="0,0,0,6"/>
+            <TextBlock x:Name="VersionText" FontSize="13" Foreground="Gray"
+                       HorizontalAlignment="Center" Margin="0,0,0,4"/>
+            <TextBlock x:Name="DateText" FontSize="13" Foreground="Gray"
+                       HorizontalAlignment="Center" Margin="0,0,0,4"/>
+            <TextBlock x:Name="AuthorText" FontSize="13" Foreground="Gray"
+                       HorizontalAlignment="Center" Margin="0,0,0,0"/>
+        </StackPanel>
+
+        <TextBlock Grid.Row="2" TextWrapping="Wrap" VerticalAlignment="Top" Margin="0,16,0,16"
+                   Foreground="#444" FontSize="12"
+                   Text="Diktieren, transkribieren (OpenAI), mit Claude glätten oder übersetzen — Ergebnis an der Cursorposition einfügen. Persönliches Tray-Tool für Windows 11."/>
+
+        <Button Grid.Row="3" Content="Schließen" Width="100" HorizontalAlignment="Center"
+                IsDefault="True" IsCancel="True" Click="OnCloseClick"/>
+    </Grid>
+</Window>

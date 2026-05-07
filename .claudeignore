@@ -1,0 +1,14 @@
+bin/
+obj/
+*.user
+*.suo
+appsettings.local.json
+secrets.dat
+openai-secrets.dat
+models/
+*.wav
+logs/
+*.log
+.env
+.vs/
+*.bin

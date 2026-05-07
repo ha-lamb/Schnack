@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Schnack.Tests/Schnack.Tests.csproj" />
+  <Project Path="Schnack/Schnack.csproj" />
+</Solution>
