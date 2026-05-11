@@ -64,6 +64,7 @@ Internes Windows-11-Diktier-Tool. Tray-App, .NET 10 / WPF / x64. Nimmt deutsche 
 - Erster echter Velopack-Release über GitHub-Releases (manuelle Verifikation)
 - Update-Mechanismus auf zweitem Test-Rechner durchspielen
 - README ggf. Privacy-Sektion finalisieren je nach Backend-Default
+- **bin/ und obj/ aus Git-History entfernen:** Commit 3d0419e hat 39 Dateien (Test-Assemblies in Schnack.Tests/bin/ und Schnack.Tests/obj/) versehentlich committed. .gitignore prüfen, `git rm -r --cached bin/ obj/` nachholen — separater Task, nicht eilig.
 
 ### ❌ Out of Scope (dauerhaft)
 - Hybrid-Backend-Modi
@@ -135,6 +136,7 @@ Sammelliste, die nur ich (Hauke) erledigen kann, nicht Claude:
 
 ## Änderungs-Protokoll
 
+- **11.05.2026** — Erster Velopack-Probebuild (`.\build-release.ps1 -SkipUpload -Version 1.3.0`) erfolgreich. Setup-EXE: `releases/Schnack-win-Setup.exe`, 80,4 MB. Zwei Fixes nötig waren: (1) `DOTNET_ROLL_FORWARD=Major` dauerhaft im User-ENV gesetzt + ins Skript geschrieben (vpk 0.0.1298 zielt auf .NET 9, Rechner hat nur .NET 10); (2) Verifikationspfad im Skript von `Schnack-Setup.exe` auf `Schnack-win-Setup.exe` korrigiert (vpk-Namenskonvention).
 - **11.05.2026** — GitHub-MCP in Claude Desktop eingerichtet und getestet. Read-Zugriff aufs private Repo `ha-lamb/Schnack` funktioniert (leere Issues-Liste erwartungsgemäß). Config-Vorlage `claude_desktop_config.example.json` im Repo abgelegt (ohne Token). GitHub-Issues für Befund 1–4 können jetzt per MCP angelegt werden.
 - **11.05.2026** — Hub-and-Spoke-Chat-Konvention etabliert. Alter unübersichtlicher Sammelchat wird verlassen, neuer HUB-Chat angelegt. Chat-Konvention in Project Instructions und PROJEKT_STATUS.md verankert.
 - **10.05.2026** — PROJEKT_STATUS.md angelegt nach Wechsel zu Claude Desktop + Filesystem-MCP-Setup.

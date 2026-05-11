@@ -24,6 +24,22 @@ public partial class App : Application
     [STAThread]
     public static void Main(string[] args)
     {
+        if (Environment.Version.Major < 10)
+        {
+            var r = System.Windows.MessageBox.Show(
+                $"Schnack benötigt .NET 10 oder neuer (gefunden: {Environment.Version}).\n\nJetzt herunterladen?",
+                "Schnack – .NET 10 erforderlich",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Error);
+            if (r == System.Windows.MessageBoxResult.Yes)
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "https://dotnet.microsoft.com/download/dotnet/10.0",
+                    UseShellExecute = true
+                });
+            return;
+        }
+
         // Muss allererster Aufruf sein — verarbeitet Velopack Update-Hooks ohne WPF-Stack
         VelopackApp.Build()
             .OnFirstRun(_ => { /* FirstRunWindow wird in OnStartup gezeigt */ })
@@ -89,9 +105,6 @@ public partial class App : Application
         _textInsertionService = _serviceProvider.GetRequiredService<ITextInsertionService>();
 
         _trayService = _serviceProvider.GetRequiredService<ITrayService>();
-        _trayService.StartRecordingRequested += OnStartRecordingRequested;
-        _trayService.StopRecordingRequested += OnStopRecordingRequested;
-        _trayService.CancelProcessingRequested += OnCancelProcessingRequested;
         _trayService.ModeChangeRequested += OnModeChangeRequested;
         _trayService.SettingsRequested += OnSettingsRequested;
         _trayService.AboutRequested += OnAboutRequested;
@@ -168,8 +181,6 @@ public partial class App : Application
         _logLevelSwitch.MinimumLevel = wantDebug ? LogEventLevel.Debug : LogEventLevel.Information;
     }
 
-    private void OnCancelProcessingRequested(object? sender, EventArgs e) => _pipelineCts?.Cancel();
-
     private void OnHotkeyPressed() => TryToggleRecordingUserAction();
 
     private void OnFloatingToggleRecordingRequested(object? sender, EventArgs e) => TryToggleRecordingUserAction();
@@ -225,30 +236,6 @@ public partial class App : Application
         }
 
         prev = Interlocked.CompareExchange(ref _recordingState, (int)RecordingState.Processing, (int)RecordingState.Recording);
-        if (prev == (int)RecordingState.Recording)
-            StopAndProcess();
-    }
-
-    private void OnStartRecordingRequested(object? sender, EventArgs e)
-    {
-        if (_trayService != null)
-            _cachedTargetHwnd = _trayService.CachedForegroundHwnd;
-
-        if (_cachedTargetHwnd == 0)
-        {
-            _trayService?.ShowBalloonTip("Kein Zielfenster erkannt",
-                "Cursor bitte vorher in ein Textfeld positionieren, dann erneut starten.");
-            return;
-        }
-
-        int prev = Interlocked.CompareExchange(ref _recordingState, (int)RecordingState.Recording, (int)RecordingState.Idle);
-        if (prev == (int)RecordingState.Idle)
-            StartRecording();
-    }
-
-    private void OnStopRecordingRequested(object? sender, EventArgs e)
-    {
-        int prev = Interlocked.CompareExchange(ref _recordingState, (int)RecordingState.Processing, (int)RecordingState.Recording);
         if (prev == (int)RecordingState.Recording)
             StopAndProcess();
     }

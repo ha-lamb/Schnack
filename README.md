@@ -7,7 +7,8 @@ Internes Windows-11-Tray-Tool für persönliche Nutzung. Nimmt gesprochenen deut
 ## Voraussetzungen
 
 - Windows 11 (x64)
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+- [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) (x64) — wird beim Start geprüft
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (nur für Entwicklung)
 - Mikrofon
 - Anthropic API-Key (Claude-Verarbeitung)
 - OpenAI API-Key (Spracherkennung)
@@ -96,12 +97,13 @@ Rechtsklick auf das Tray-Icon:
 
 | Eintrag | Funktion |
 |---------|---------|
-| Aufnahme starten | Startet die Aufnahme |
-| Aufnahme stoppen | Stoppt und verarbeitet |
-| Verarbeitung abbrechen | Nur während Transkription/API: bricht die laufende Pipeline ab |
+| *(Hinweis: Aufnahme über Hotkey oder schwebenden Button)* | — |
 | Deutsch korrigieren | Wechselt zu Modus `de_correct` |
 | Deutsch → Englisch | Wechselt zu Modus `de_to_en` |
 | Einstellungen… | Öffnet den Einstellungs-Dialog |
+| Schwebender Aufnahme-Button | Blendet den schwebenden Button ein/aus |
+| Über Schnack… | Zeigt Version und Lizenz |
+| Auf Updates prüfen | Manueller Update-Check |
 | Beenden | Beendet das Programm |
 
 ### Modi

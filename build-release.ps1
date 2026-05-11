@@ -23,6 +23,9 @@ $PackId  = "Schnack"
 $Authors = "Hauke Lamb"
 $Icon    = "Schnack/Resources/tray-icon.ico"
 
+# -- 0. .NET Roll-Forward fuer vpk (vpk 0.0.1298 zielt auf net9, Rechner hat net10) --
+$env:DOTNET_ROLL_FORWARD = "Major"
+
 # -- 1. vpk CLI pruefen ------------------------------------------------------
 Write-Host "Pruefe vpk CLI..." -ForegroundColor Cyan
 try {
@@ -70,8 +73,7 @@ Write-Host "Publiziere Schnack..." -ForegroundColor Cyan
 & dotnet publish Schnack `
     -c Release `
     -r win-x64 `
-    --self-contained true `
-    /p:PublishSingleFile=false `
+    --self-contained false `
     -o publish/win-x64
 if ($LASTEXITCODE -ne 0) {
     Write-Error "dotnet publish fehlgeschlagen."
@@ -96,7 +98,8 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # -- 7. Verifikation ---------------------------------------------------------
-$setupExe = "releases/Schnack-Setup.exe"
+# vpk erzeugt "Schnack-win-Setup.exe" (nicht "Schnack-Setup.exe")
+$setupExe = "releases/Schnack-win-Setup.exe"
 if (-not (Test-Path $setupExe)) {
     Write-Error "Setup-EXE nicht gefunden: $setupExe"
     exit 1

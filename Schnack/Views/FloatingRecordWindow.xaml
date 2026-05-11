@@ -17,9 +17,13 @@
             Background="#F5FFFFFF"
             BorderBrush="#CC333333"
             BorderThickness="1"
+            RenderTransformOrigin="0.5,0.5"
             MouseLeftButtonDown="OnBorderMouseLeftButtonDown"
             MouseMove="OnBorderMouseMove"
             MouseLeftButtonUp="OnBorderMouseLeftButtonUp">
+        <Border.RenderTransform>
+            <ScaleTransform x:Name="RootScale" />
+        </Border.RenderTransform>
         <Image Source="/Resources/Schnack_Logo.png"
                Width="32" Height="32"
                Stretch="Uniform"

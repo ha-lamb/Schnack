@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using Schnack.Interop;
 
 namespace Schnack.Views;
@@ -11,6 +12,8 @@ public partial class FloatingRecordWindow : Window
     private bool _dragging;
     private Point _pressScreen;
     private bool _suppressToggle;
+    private Storyboard? _recordingStoryboard;
+    private Storyboard? _processingStoryboard;
 
     public event EventHandler? ToggleRecording;
     public event EventHandler? DragCompleted;
@@ -18,6 +21,35 @@ public partial class FloatingRecordWindow : Window
     public FloatingRecordWindow()
     {
         InitializeComponent();
+        InitAnimations();
+    }
+
+    private void InitAnimations()
+    {
+        // Recording: Skalierungs-Puls (1.0 → 1.08 → 1.0, 0.7 s Halbwelle)
+        _recordingStoryboard = new Storyboard { RepeatBehavior = RepeatBehavior.Forever };
+        foreach (var prop in new[] { ScaleTransform.ScaleXProperty, ScaleTransform.ScaleYProperty })
+        {
+            var anim = new DoubleAnimation(1.0, 1.08, new Duration(TimeSpan.FromSeconds(0.7)))
+            {
+                AutoReverse = true,
+                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+            };
+            Storyboard.SetTargetName(anim, "RootScale");
+            Storyboard.SetTargetProperty(anim, new PropertyPath(prop));
+            _recordingStoryboard.Children.Add(anim);
+        }
+
+        // Processing: Opacity-Puls (1.0 → 0.4 → 1.0, 0.9 s Halbwelle)
+        _processingStoryboard = new Storyboard { RepeatBehavior = RepeatBehavior.Forever };
+        var opacityAnim = new DoubleAnimation(1.0, 0.4, new Duration(TimeSpan.FromSeconds(0.9)))
+        {
+            AutoReverse = true,
+            EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+        };
+        Storyboard.SetTargetName(opacityAnim, "RootBorder");
+        Storyboard.SetTargetProperty(opacityAnim, new PropertyPath(UIElement.OpacityProperty));
+        _processingStoryboard.Children.Add(opacityAnim);
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -50,6 +82,17 @@ public partial class FloatingRecordWindow : Window
             RootBorder.Background = new SolidColorBrush(Color.FromArgb(0xF5, 0xFF, 0xFF, 0xFF));
             RootBorder.BorderBrush = new SolidColorBrush(Color.FromArgb(0xCC, 0x33, 0x33, 0x33));
         }
+
+        _recordingStoryboard?.Stop(this);
+        _processingStoryboard?.Stop(this);
+        RootBorder.Opacity = 1.0;
+        RootScale.ScaleX = 1.0;
+        RootScale.ScaleY = 1.0;
+
+        if (isRecording)
+            _recordingStoryboard?.Begin(this, isControllable: true);
+        else if (isProcessing)
+            _processingStoryboard?.Begin(this, isControllable: true);
     }
 
     private void OnBorderMouseLeftButtonDown(object sender, MouseButtonEventArgs e)

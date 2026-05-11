@@ -10,14 +10,15 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>Schnack</AssemblyName>
     <RootNamespace>Schnack</RootNamespace>
+    <ApplicationIcon>Resources\tray-icon.ico</ApplicationIcon>
     <!-- Versionierung: bei jedem Release Version + ReleaseDate aktualisieren -->
-    <Version>1.3.0</Version>
+    <Version>1.3.1</Version>
     <Company>Hauke Lamb</Company>
   </PropertyGroup>
 
   <!-- Veröffentlichungsdatum wird ins Assembly eingebettet und zur Laufzeit gelesen -->
   <ItemGroup>
-    <AssemblyMetadata Include="ReleaseDate" Value="2026-05-05" />
+    <AssemblyMetadata Include="ReleaseDate" Value="2026-05-11" />
   </ItemGroup>
 
   <ItemGroup>
