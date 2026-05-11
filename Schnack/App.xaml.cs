@@ -9,7 +9,9 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
+using Velopack;
 using Schnack.Interop;
+using Schnack.Services.Internal;
 using Schnack.Models;
 using Schnack.Services;
 using Schnack.ViewModels;
@@ -19,6 +21,19 @@ namespace Schnack;
 
 public partial class App : Application
 {
+    [STAThread]
+    public static void Main(string[] args)
+    {
+        // Muss allererster Aufruf sein — verarbeitet Velopack Update-Hooks ohne WPF-Stack
+        VelopackApp.Build()
+            .OnFirstRun(_ => { /* FirstRunWindow wird in OnStartup gezeigt */ })
+            .Run();
+
+        var app = new App();
+        app.InitializeComponent();
+        app.Run();
+    }
+
     private Mutex? _mutex;
     private ServiceProvider? _serviceProvider;
     private Microsoft.Extensions.Logging.ILogger? _logger;
@@ -28,6 +43,7 @@ public partial class App : Application
     private IRecordingService? _recordingService;
     private ITextInsertionService? _textInsertionService;
     private IFloatingRecordUi? _floatingRecordUi;
+    private IUpdateService? _updateService;
 
     // Thread-safe state: values from RecordingState enum
     private int _recordingState;
@@ -81,6 +97,8 @@ public partial class App : Application
         _trayService.AboutRequested += OnAboutRequested;
         _trayService.ToggleFloatingRecorderRequested += OnToggleFloatingRecorderRequested;
         _trayService.ExitRequested += OnExitRequested;
+        _trayService.ApplyUpdateRequested     += OnApplyUpdateRequested;
+        _trayService.CheckForUpdatesRequested += OnCheckForUpdatesRequested;
         _trayService.Initialize();
         _trayService.UpdateState(RecordingState.Idle);
         _trayService.UpdateFloatingButtonVisibility(false);
@@ -117,6 +135,11 @@ public partial class App : Application
 
         if (_settingsService.CreatedDefaultSettingsOnLastLoad)
             _ = Dispatcher.BeginInvoke(new Action(ShowFirstRunDialog), DispatcherPriority.ApplicationIdle);
+
+        _updateService = _serviceProvider.GetRequiredService<IUpdateService>();
+        _updateService.UpdateAvailable    += OnUpdateAvailable;
+        _updateService.BeforeApplyRestart += OnBeforeApplyRestart;
+        _ = _updateService.CheckOnStartupAsync();
 
         _logger.LogInformation("Schnack ready. Mode: {Mode}, Backend: {Backend}", _currentMode, settings.BackendProvider);
     }
@@ -162,6 +185,31 @@ public partial class App : Application
 
     private void OnFloatingVisibilityChanged(object? sender, EventArgs e) =>
         _trayService?.UpdateFloatingButtonVisibility(_floatingRecordUi?.IsVisible ?? false);
+
+    private void OnUpdateAvailable(object? sender, UpdateAvailableEventArgs e) =>
+        _trayService?.ShowUpdateMenuItem(e.NewVersion);
+
+    private void OnBeforeApplyRestart(object? sender, EventArgs e)
+    {
+        try { _mutex?.ReleaseMutex(); } catch { }
+        _mutex?.Dispose();
+        _mutex = null;
+    }
+
+    private void OnCheckForUpdatesRequested(object? sender, EventArgs e) =>
+        _ = _updateService?.CheckAndPromptAsync();
+
+    private void OnApplyUpdateRequested(object? sender, EventArgs e)
+    {
+        if ((RecordingState)_recordingState != RecordingState.Idle)
+        {
+            var r = MessageBox.Show(
+                "Schnack startet jetzt neu — laufende Aufnahme oder Verarbeitung geht verloren. Fortfahren?",
+                "Schnack – Update installieren", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (r != MessageBoxResult.Yes) return;
+        }
+        _ = _updateService?.ApplyKnownUpdateAsync();
+    }
 
     /// <summary>Hotkey und schwebender Button: Vordergrund-Fenster sofort lesen (NOACTIVATE-Floater stiehlt keinen Fokus).</summary>
     private void TryToggleRecordingUserAction()
@@ -453,6 +501,10 @@ public partial class App : Application
 
         services.AddKeyedSingleton<IPostProcessingService, OpenAiChatService>(BackendProvider.OpenAi.ToString());
         services.AddKeyedSingleton<IPostProcessingService, ClaudeService>(BackendProvider.Claude.ToString());
+
+        services.AddSingleton<IUpdateChecker>(
+            _ => new VelopackUpdateChecker(VelopackUpdateService.RepoUrl));
+        services.AddSingleton<IUpdateService, VelopackUpdateService>();
 
         services.AddTransient<SettingsViewModel>();
         services.AddTransient<SettingsWindow>();

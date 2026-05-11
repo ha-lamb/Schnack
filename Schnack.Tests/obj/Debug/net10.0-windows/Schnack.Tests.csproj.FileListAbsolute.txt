@@ -158,3 +158,6 @@ C:\Projekte\Schnack\Schnack.Tests\bin\Debug\net10.0-windows\runtimes\win-x86\ggm
 C:\Projekte\Schnack\Schnack.Tests\bin\Debug\net10.0-windows\runtimes\win-x86\ggml-cpu-whisper.dll
 C:\Projekte\Schnack\Schnack.Tests\bin\Debug\net10.0-windows\Microsoft.Extensions.AI.Abstractions.dll
 C:\Projekte\Schnack\Schnack.Tests\bin\Debug\net10.0-windows\Whisper.net.dll
+C:\Projekte\Schnack\Schnack.Tests\bin\Debug\net10.0-windows\NuGet.Versioning.dll
+C:\Projekte\Schnack\Schnack.Tests\bin\Debug\net10.0-windows\Velopack.dll
+C:\Projekte\Schnack\Schnack.Tests\obj\Debug\net10.0-windows\Schnack.Tests.sourcelink.json

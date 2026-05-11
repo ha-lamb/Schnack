@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "nVpObfKRT6Y=",
+  "dgSpecHash": "+UVduN6lYe0=",
   "success": true,
   "projectFilePath": "C:\\Projekte\\Schnack\\Schnack\\Schnack.csproj",
   "expectedPackageFiles": [
@@ -30,10 +30,12 @@
     "C:\\Users\\hlamb\\.nuget\\packages\\naudio.winmm\\2.2.1\\naudio.winmm.2.2.1.nupkg.sha512",
     "C:\\Users\\hlamb\\.nuget\\packages\\nhotkey\\3.0.0\\nhotkey.3.0.0.nupkg.sha512",
     "C:\\Users\\hlamb\\.nuget\\packages\\nhotkey.wpf\\3.0.0\\nhotkey.wpf.3.0.0.nupkg.sha512",
+    "C:\\Users\\hlamb\\.nuget\\packages\\nuget.versioning\\6.14.0\\nuget.versioning.6.14.0.nupkg.sha512",
     "C:\\Users\\hlamb\\.nuget\\packages\\serilog\\4.2.0\\serilog.4.2.0.nupkg.sha512",
     "C:\\Users\\hlamb\\.nuget\\packages\\serilog.extensions.logging\\9.0.0\\serilog.extensions.logging.9.0.0.nupkg.sha512",
     "C:\\Users\\hlamb\\.nuget\\packages\\serilog.sinks.file\\6.0.0\\serilog.sinks.file.6.0.0.nupkg.sha512",
     "C:\\Users\\hlamb\\.nuget\\packages\\system.security.cryptography.protecteddata\\9.0.0\\system.security.cryptography.protecteddata.9.0.0.nupkg.sha512",
+    "C:\\Users\\hlamb\\.nuget\\packages\\velopack\\0.0.1298\\velopack.0.0.1298.nupkg.sha512",
     "C:\\Users\\hlamb\\.nuget\\packages\\whisper.net\\1.9.0\\whisper.net.1.9.0.nupkg.sha512",
     "C:\\Users\\hlamb\\.nuget\\packages\\whisper.net.runtime\\1.9.0\\whisper.net.runtime.1.9.0.nupkg.sha512",
     "C:\\Users\\hlamb\\.nuget\\packages\\whisper.net.runtime.metal\\1.9.0\\whisper.net.runtime.metal.1.9.0.nupkg.sha512"
@@ -42,7 +44,7 @@
     {
       "code": "NU1510",
       "level": "Warning",
-      "message": "PackageReference System.Security.Cryptography.ProtectedData wird nicht gekürzt. Erwägen Sie, dieses Paket aus Ihren Abhängigkeiten zu entfernen, da es wahrscheinlich nicht erforderlich ist.",
+      "message": "PackageReference System.Security.Cryptography.ProtectedData will not be pruned. Consider removing this package from your dependencies, as it is likely unnecessary.",
       "projectPath": "C:\\Projekte\\Schnack\\Schnack\\Schnack.csproj",
       "warningLevel": 1,
       "filePath": "C:\\Projekte\\Schnack\\Schnack\\Schnack.csproj",

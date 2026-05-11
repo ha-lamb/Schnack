@@ -31,6 +31,7 @@
     <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.0" />
+    <PackageReference Include="Velopack" Version="0.0.1298" />
     <PackageReference Include="Whisper.net" Version="1.9.0" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.0" />
   </ItemGroup>
@@ -39,5 +40,14 @@
     <Resource Include="Resources\tray-icon.ico" />
     <Resource Include="Resources\Schnack_Logo.png" />
   </ItemGroup>
+
+  <!-- Velopack: eigene Main()-Methode übernimmt den App-Einstiegspunkt -->
+  <ItemGroup>
+    <ApplicationDefinition Remove="App.xaml" />
+    <Page Include="App.xaml" />
+  </ItemGroup>
+  <PropertyGroup>
+    <StartupObject>Schnack.App</StartupObject>
+  </PropertyGroup>
 
 </Project>

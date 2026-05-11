@@ -21,6 +21,7 @@ public sealed class TrayService : ITrayService
     private MenuItem? _modeCorrectItem;
     private MenuItem? _modeTranslateItem;
     private MenuItem? _floatingItem;
+    private MenuItem? _updateItem;
     private bool _disposed;
 
     public nint CachedForegroundHwnd { get; private set; }
@@ -32,6 +33,8 @@ public sealed class TrayService : ITrayService
     public event EventHandler? SettingsRequested;
     public event EventHandler? AboutRequested;
     public event EventHandler? ToggleFloatingRecorderRequested;
+    public event EventHandler? ApplyUpdateRequested;
+    public event EventHandler? CheckForUpdatesRequested;
     public event EventHandler? ExitRequested;
 
     public TrayService(ILogger<TrayService> logger, ISettingsService settings)
@@ -102,6 +105,12 @@ public sealed class TrayService : ITrayService
         var aboutItem = new MenuItem { Header = "Über Schnack…" };
         aboutItem.Click += (_, _) => AboutRequested?.Invoke(this, EventArgs.Empty);
 
+        _updateItem = new MenuItem { Visibility = Visibility.Collapsed };
+        _updateItem.Click += (_, _) => ApplyUpdateRequested?.Invoke(this, EventArgs.Empty);
+
+        var checkUpdatesItem = new MenuItem { Header = "Auf Updates prüfen" };
+        checkUpdatesItem.Click += (_, _) => CheckForUpdatesRequested?.Invoke(this, EventArgs.Empty);
+
         var exitItem = new MenuItem { Header = "Beenden" };
         exitItem.Click += (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty);
 
@@ -116,6 +125,9 @@ public sealed class TrayService : ITrayService
         menu.Items.Add(settingsItem);
         menu.Items.Add(_floatingItem);
         menu.Items.Add(aboutItem);
+        menu.Items.Add(new Separator());
+        menu.Items.Add(_updateItem);
+        menu.Items.Add(checkUpdatesItem);
         menu.Items.Add(new Separator());
         menu.Items.Add(exitItem);
 
@@ -252,6 +264,25 @@ public sealed class TrayService : ITrayService
         {
             if (_floatingItem != null)
                 _floatingItem.IsChecked = visible;
+        });
+    }
+
+    public void ShowUpdateMenuItem(string version)
+    {
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            if (_updateItem == null) return;
+            _updateItem.Header = $"Update v{version} installieren";
+            _updateItem.Visibility = Visibility.Visible;
+        });
+    }
+
+    public void HideUpdateMenuItem()
+    {
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            if (_updateItem != null)
+                _updateItem.Visibility = Visibility.Collapsed;
         });
     }
 

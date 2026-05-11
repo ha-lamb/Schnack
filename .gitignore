@@ -8,6 +8,7 @@ openai-secrets.dat
 models/
 publish/
 releases/
+*.nupkg
 *.wav
 logs/
 *.log

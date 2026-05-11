@@ -18,6 +18,11 @@ public interface ITrayService : IDisposable
     void UpdateFloatingButtonVisibility(bool visible);
     event EventHandler? ExitRequested;
 
-    /// <summary>Ziel-HWND für Tray-gestartete Aufnahme: vor Menü (Mousedown) und nach „Start“ per Idle erneut ermittelt.</summary>
+    void ShowUpdateMenuItem(string version);
+    void HideUpdateMenuItem();
+    event EventHandler? ApplyUpdateRequested;
+    event EventHandler? CheckForUpdatesRequested;
+
+    /// <summary>Ziel-HWND für Tray-gestartete Aufnahme: vor Menü (Mousedown) und nach „Start” per Idle erneut ermittelt.</summary>
     nint CachedForegroundHwnd { get; }
 }

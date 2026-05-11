@@ -64,6 +64,23 @@ dotnet test Schnack.Tests/Schnack.Tests.csproj
 
 ---
 
+## Updates
+
+Schnack prüft beim Start automatisch im Hintergrund auf neue Versionen.
+
+- Bei verfügbarem Update: Tray-Notification „Update auf vX.Y.Z verfügbar" + neuer Menüeintrag „Update vX.Y.Z installieren".
+- Klick auf diesen Eintrag lädt das Delta-Update (~5–20 MB) herunter und startet die App neu.
+- Manueller Check jederzeit über **Tray-Menü → Auf Updates prüfen**.
+- Der App-Start wird durch den Update-Check **nicht verzögert** (läuft im Hintergrund).
+
+**Privacy:** Der Update-Check sendet einen anonymen HTTPS-Request an `github.com/ha-lamb/Schnack`. Keine Telemetrie, keine persönlichen Daten.
+
+## Release bauen (für Maintainer)
+
+Vollständige Anleitung: siehe [RELEASE.md](RELEASE.md).
+
+---
+
 ## Bedienung
 
 ### Hotkey (Standard: `Ctrl+Alt+S`)

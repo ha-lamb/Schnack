@@ -443,6 +443,10 @@
               "target": "Package",
               "version": "[9.0.0, )"
             },
+            "Velopack": {
+              "target": "Package",
+              "version": "[0.0.1298, )"
+            },
             "Whisper.net": {
               "target": "Package",
               "version": "[1.9.0, )"
