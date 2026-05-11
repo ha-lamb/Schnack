@@ -50,7 +50,9 @@ public sealed class OpenAiChatService : IPostProcessingService
         var requestBody = new ChatRequest
         {
             Model = model,
-            Messages = [new ChatMessage { Role = "user", Content = prompt }]
+            Messages = [new ChatMessage { Role = "user", Content = prompt }],
+            MaxTokens = _settings.Settings.OpenAiChatMaxTokens,
+            Temperature = 0.1f
         };
         var requestJson = JsonSerializer.Serialize(requestBody, JsonOptions);
 

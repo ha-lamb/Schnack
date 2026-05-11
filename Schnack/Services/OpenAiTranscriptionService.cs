@@ -2,9 +2,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using Schnack.Models.OpenAi;
 using Schnack.Services.Internal;
 
 namespace Schnack.Services;
@@ -50,7 +48,8 @@ public sealed class OpenAiTranscriptionService : ITranscriptionService
                 form.Add(fileContent, "file", Path.GetFileName(wavFilePath));
                 form.Add(new StringContent(model, Encoding.UTF8), "model");
                 form.Add(new StringContent("de", Encoding.UTF8), "language");
-                form.Add(new StringContent("json", Encoding.UTF8), "response_format");
+                form.Add(new StringContent("text", Encoding.UTF8), "response_format");
+                form.Add(new StringContent("Diktat auf Deutsch.", Encoding.UTF8), "prompt");
 
                 using var req = new HttpRequestMessage(HttpMethod.Post, "v1/audio/transcriptions") { Content = form };
                 req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
@@ -70,9 +69,7 @@ public sealed class OpenAiTranscriptionService : ITranscriptionService
             response.EnsureSuccessStatusCode();
         }
 
-        var json = await response.Content.ReadAsStringAsync(ct);
-        var parsed = JsonSerializer.Deserialize<TranscriptionResponse>(json);
-        var text = parsed?.Text?.Trim() ?? string.Empty;
+        var text = (await response.Content.ReadAsStringAsync(ct)).Trim();
         if (_settings.Settings.DebugLogging)
             _logger.LogDebug("OpenAI transcript length: {Length} chars", text.Length);
         return text;

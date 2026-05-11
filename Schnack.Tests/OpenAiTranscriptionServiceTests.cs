@@ -52,8 +52,7 @@ public class OpenAiTranscriptionServiceTests : IDisposable
     [Fact]
     public async Task TranscribeAsync_ValidResponse_ReturnsText()
     {
-        const string responseJson = """{"text": "Das ist ein Test."}""";
-        var sut = BuildService(new FakeMessageHandler(OkResponse(responseJson)));
+        var sut = BuildService(new FakeMessageHandler(OkResponse("Das ist ein Test.")));
 
         var result = await sut.TranscribeAsync(_tempWavPath);
 
@@ -63,8 +62,7 @@ public class OpenAiTranscriptionServiceTests : IDisposable
     [Fact]
     public async Task TranscribeAsync_EmptyText_ReturnsEmptyString()
     {
-        const string responseJson = """{"text": "  "}""";
-        var sut = BuildService(new FakeMessageHandler(OkResponse(responseJson)));
+        var sut = BuildService(new FakeMessageHandler(OkResponse("  ")));
 
         var result = await sut.TranscribeAsync(_tempWavPath);
 
@@ -92,10 +90,9 @@ public class OpenAiTranscriptionServiceTests : IDisposable
     [Fact]
     public async Task TranscribeAsync_ServiceUnavailableThenOk_RetriesAndReturns()
     {
-        const string responseJson = """{"text": "Nach Retry"}""";
         var handler = new FakeSequentialHandler(
             new HttpResponseMessage(HttpStatusCode.ServiceUnavailable),
-            OkResponse(responseJson));
+            OkResponse("Nach Retry"));
 
         var sut = BuildService(handler);
         var result = await sut.TranscribeAsync(_tempWavPath);
