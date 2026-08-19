@@ -4,8 +4,9 @@
 
 **Stand:** 19. August 2026
 **Version:** siehe `<Version>` in `Schnack/Schnack.csproj`
-**Repo:** `ha-lamb/Schnack` (privat, MIT), Remote verifiziert, `main` synchron
+**Repo:** `ha-lamb/Schnack` (**public** seit 19.08.2026, MIT), `main` synchron
 **Build/Tests:** grün (37 Tests), keine Warnungen
+**Letzter Release:** v1.3.2 (19.08.2026, GitHub Releases — Setup, Portable, Full + Delta)
 
 ---
 
@@ -17,9 +18,9 @@
 
 ## Offene Punkte
 
-- [ ] **Erster echter GitHub-Release** über `.\build-release.ps1` (Hauke; Voraussetzungen laut RELEASE.md).
-- [ ] **Update-Check funktioniert erst mit public Repo:** `GithubSource` läuft anonym; gegen das private Repo schlägt der Check still fehl. Entscheidung offen: Repo public stellen oder (spätere Iteration) Token-Lösung.
-- [ ] **Update-Mechanismus auf zweitem Rechner verifizieren** (nach erstem Release).
+- [ ] **Update-Mechanismus end-to-end verifizieren:** `Schnack-win-Setup.exe` (v1.3.2) installieren; beim übernächsten Release prüfen, dass die App das Update selbst findet und per Delta installiert.
+- [x] Erster GitHub-Release (v1.3.2, 19.08.2026) — erledigt.
+- [x] Repo public gestellt (19.08.2026) — In-App-Update-Check damit funktionsfähig.
 
 ## Bekannte, bewusst offene Punkte aus dem Review 08/2026
 

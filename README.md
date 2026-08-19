@@ -67,8 +67,6 @@ Schnack prüft beim Start automatisch im Hintergrund auf neue Versionen (GitHub 
 - Manueller Check über **Tray-Menü → Auf Updates prüfen**.
 - Der App-Start wird durch den Update-Check nicht verzögert.
 
-**Hinweis:** Solange das GitHub-Repo privat ist, schlägt der anonyme Update-Check still fehl — Updates funktionieren erst mit einem öffentlichen Repo.
-
 **Privacy:** Der Update-Check sendet einen anonymen HTTPS-Request an `github.com/ha-lamb/Schnack`. Keine Telemetrie, keine persönlichen Daten.
 
 Release bauen (für Maintainer): siehe [RELEASE.md](RELEASE.md).

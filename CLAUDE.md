@@ -90,7 +90,7 @@ API-Keys können alternativ über die Settings-UI hinterlegt werden — werden d
 - `VelopackApp.Build().Run()` muss als allererster Aufruf in `Main` laufen, **vor** dem WPF-Bootstrap (verarbeitet Update-Hooks `--veloapp-*` ohne UI-Stack).
 - **Single-Instance-Mutex** (`Schnack.Singleton.{Environment.UserName}`): `ReleaseMutex()` immer in try-catch (Cross-Thread-Release wirft sonst).
 - Vor `ApplyUpdatesAndRestart` feuert `IUpdateService.BeforeApplyRestart` — `App` gibt dort den Mutex frei, sonst blockiert die neu gestartete Instanz.
-- **Update-Quelle:** `VelopackUpdateService.RepoUrl` (Konstante) → `https://github.com/ha-lamb/Schnack`. Solange das Repo **privat** ist, schlägt der anonyme Update-Check still fehl (nur Warning-Log); er funktioniert erst mit public Repo oder einer späteren Token-Lösung.
+- **Update-Quelle:** `VelopackUpdateService.RepoUrl` (Konstante) → `https://github.com/ha-lamb/Schnack`. Das Repo ist seit 08/2026 **public** — der anonyme Update-Check funktioniert. Würde es wieder privat gestellt, schlüge der Check still fehl (nur Warning-Log).
 
 ### Secrets
 
