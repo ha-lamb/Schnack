@@ -56,7 +56,7 @@ public sealed class TrayService : ITrayService
     {
         var hintItem = new MenuItem
         {
-            Header = "Aufnahme über Hotkey (Ctrl+Alt+S) oder schwebenden Button",
+            Header = $"Aufnahme über Hotkey ({_settings.Settings.Hotkey}) oder schwebenden Button",
             IsEnabled = false
         };
 

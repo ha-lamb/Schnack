@@ -79,6 +79,8 @@ internal static class Win32
         public nint dwExtraInfo;
     }
 
+    // Wird nicht direkt verwendet, ist aber als größtes Union-Member nötig,
+    // damit sizeof(INPUT) dem Win32-Layout entspricht — Entfernen bricht SendInput.
     [StructLayout(LayoutKind.Sequential)]
     internal struct MOUSEINPUT
     {

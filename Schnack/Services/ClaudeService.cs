@@ -11,9 +11,11 @@ namespace Schnack.Services;
 
 public sealed class ClaudeService : IPostProcessingService
 {
+    // Anthropic erwartet snake_case; die DTO-Attribute ([JsonPropertyName]) sind maßgeblich,
+    // die Policy hier nur als konsistentes Fallback (identisch zu OpenAiChatService).
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
     };
 
     private readonly IHttpClientFactory _httpClientFactory;
@@ -73,7 +75,7 @@ public sealed class ClaudeService : IPostProcessingService
 
         if (!response.IsSuccessStatusCode)
         {
-            await LogSanitizedApiErrorAsync(response, ct);
+            await ApiErrorLog.LogSanitizedAsync(response, _logger, "Anthropic", ct);
             response.EnsureSuccessStatusCode();
         }
 
@@ -96,21 +98,4 @@ public sealed class ClaudeService : IPostProcessingService
         DictationPrompts.Build(
             mode == DictationMode.DeCorrect ? DictationPrompts.DeCorrect : DictationPrompts.DeToEn,
             transcript);
-
-    private async Task LogSanitizedApiErrorAsync(HttpResponseMessage response, CancellationToken ct)
-    {
-        try
-        {
-            var body = await response.Content.ReadAsStringAsync(ct);
-            using var doc = JsonDocument.Parse(body);
-            var err = doc.RootElement.GetProperty("error");
-            var type = err.TryGetProperty("type", out var t) ? t.GetString() : null;
-            var code = err.TryGetProperty("code", out var c) ? c.GetString() : null;
-            _logger.LogWarning("Anthropic API error type={Type} code={Code} status={Status}", type, code, (int)response.StatusCode);
-        }
-        catch
-        {
-            _logger.LogWarning("Anthropic API error status={Status}", (int)response.StatusCode);
-        }
-    }
 }

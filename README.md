@@ -1,6 +1,13 @@
 # Schnack – Voice-to-Text Tray-Tool
 
-Internes Windows-11-Tray-Tool für persönliche Nutzung. Nimmt gesprochenen deutschen Text per globalem Hotkey auf, transkribiert ihn per **OpenAI Whisper API** (Cloud-STT) und schickt das Ergebnis zur zurückhaltenden Korrektur oder Übersetzung ins Englische an die **Anthropic Claude API**. Der finale Text wird automatisch ins zuvor aktive Textfeld eingefügt.
+Internes Windows-11-Tray-Tool für persönliche Nutzung. Nimmt gesprochenen deutschen Text per globalem Hotkey oder schwebendem Button auf, transkribiert ihn und fügt das Ergebnis — zurückhaltend korrigiert oder ins Englische übersetzt — automatisch ins zuvor aktive Textfeld ein.
+
+**Zwei wählbare Backends** (Einstellungen → Backend):
+
+| Backend | Spracherkennung | Textverarbeitung | Privacy |
+|---------|-----------------|------------------|---------|
+| **OpenAI** (Standard) | OpenAI Cloud-STT | OpenAI Chat Completions | Audio + Transkript gehen an OpenAI |
+| **Claude** | Whisper lokal (Whisper.net) | Anthropic Claude API | Audio bleibt lokal, nur Transkript geht an Anthropic |
 
 ---
 
@@ -10,34 +17,26 @@ Internes Windows-11-Tray-Tool für persönliche Nutzung. Nimmt gesprochenen deut
 - [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) (x64) — wird beim Start geprüft
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (nur für Entwicklung)
 - Mikrofon
-- Anthropic API-Key (Claude-Verarbeitung)
-- OpenAI API-Key (Spracherkennung)
+- Je nach Backend: OpenAI-API-Key **oder** Anthropic-API-Key
+- Beim Claude-Backend: einmaliger Whisper-Modell-Download (ca. 1,6 GB für `large-v3-turbo`)
 
 ---
 
 ## Setup
 
-### 1. API-Keys setzen
-
-**Anthropic (Claude – Textkorrektur / Übersetzung):**
+### API-Key setzen (je nach Backend-Wahl)
 
 ```powershell
-# In der aktuellen PowerShell-Session (nur temporär):
-$env:ANTHROPIC_API_KEY = “sk-ant-...”
+# OpenAI-Backend (Standard):
+setx OPENAI_API_KEY "sk-..."
 
-# Dauerhaft für den aktuellen Benutzer:
-setx ANTHROPIC_API_KEY “sk-ant-...”
+# Claude-Backend:
+setx ANTHROPIC_API_KEY "sk-ant-..."
+
 # Danach Terminal und VS Code neu starten
 ```
 
-**OpenAI (Whisper – Spracherkennung):**
-
-```powershell
-$env:OPENAI_API_KEY = “sk-...”
-# oder: setx OPENAI_API_KEY “sk-...”
-```
-
-Alternativ: Einstellungen öffnen → jeweiligen API-Key eingeben → **Speichern** (DPAPI-verschlüsselt).
+Alternativ: Einstellungen öffnen → API-Key eingeben → **Speichern** (wird DPAPI-verschlüsselt in `%APPDATA%\Schnack\` abgelegt).
 
 ---
 
@@ -53,32 +52,26 @@ dotnet build
 # Starten (Entwicklung):
 dotnet run --project Schnack
 
-# Release-Build für lokale Nutzung:
-dotnet publish Schnack -c Release -r win-x64 --self-contained false
-```
-
-Tests ausführen:
-
-```powershell
-dotnet test Schnack.Tests/Schnack.Tests.csproj
+# Tests:
+dotnet test
 ```
 
 ---
 
 ## Updates
 
-Schnack prüft beim Start automatisch im Hintergrund auf neue Versionen.
+Schnack prüft beim Start automatisch im Hintergrund auf neue Versionen (GitHub Releases).
 
-- Bei verfügbarem Update: Tray-Notification „Update auf vX.Y.Z verfügbar" + neuer Menüeintrag „Update vX.Y.Z installieren".
-- Klick auf diesen Eintrag lädt das Delta-Update (~5–20 MB) herunter und startet die App neu.
-- Manueller Check jederzeit über **Tray-Menü → Auf Updates prüfen**.
-- Der App-Start wird durch den Update-Check **nicht verzögert** (läuft im Hintergrund).
+- Bei verfügbarem Update: Tray-Notification + Menüeintrag „Update vX.Y.Z installieren".
+- Klick auf den Eintrag lädt das Delta-Update (~5–20 MB) herunter und startet die App neu.
+- Manueller Check über **Tray-Menü → Auf Updates prüfen**.
+- Der App-Start wird durch den Update-Check nicht verzögert.
+
+**Hinweis:** Solange das GitHub-Repo privat ist, schlägt der anonyme Update-Check still fehl — Updates funktionieren erst mit einem öffentlichen Repo.
 
 **Privacy:** Der Update-Check sendet einen anonymen HTTPS-Request an `github.com/ha-lamb/Schnack`. Keine Telemetrie, keine persönlichen Daten.
 
-## Release bauen (für Maintainer)
-
-Vollständige Anleitung: siehe [RELEASE.md](RELEASE.md).
+Release bauen (für Maintainer): siehe [RELEASE.md](RELEASE.md).
 
 ---
 
@@ -86,25 +79,27 @@ Vollständige Anleitung: siehe [RELEASE.md](RELEASE.md).
 
 ### Hotkey (Standard: `Ctrl+Alt+S`)
 
-1. Cursor in ein beliebiges Textfeld setzen (z.B. Notepad, Browser, E-Mail)
-2. `Ctrl+Alt+S` drücken → Aufnahme startet (Tray-Icon zeigt „Aufnahme läuft…")
+1. Cursor in ein beliebiges Textfeld setzen (Notepad, Browser, E-Mail, …)
+2. `Ctrl+Alt+S` drücken → Aufnahme startet
 3. Sprechen
 4. `Ctrl+Alt+S` erneut drücken → Transkription + Verarbeitung → Text wird eingefügt
 
-### Tray-Menü
+### Schwebender Aufnahme-Button
 
-Rechtsklick auf das Tray-Icon:
+Über das Tray-Menü ein-/ausblendbar (Häkchen-Eintrag). Klick startet/stoppt die Aufnahme, Farben zeigen den Status (rot = Aufnahme, gelb = Verarbeitung). Per Maus frei verschiebbar; die Position bleibt über App-Neustarts erhalten.
+
+### Tray-Menü
 
 | Eintrag | Funktion |
 |---------|---------|
-| *(Hinweis: Aufnahme über Hotkey oder schwebenden Button)* | — |
-| Deutsch korrigieren | Wechselt zu Modus `de_correct` |
-| Deutsch → Englisch | Wechselt zu Modus `de_to_en` |
-| Einstellungen… | Öffnet den Einstellungs-Dialog |
-| Schwebender Aufnahme-Button | Blendet den schwebenden Button ein/aus |
-| Über Schnack… | Zeigt Version und Lizenz |
+| *Hinweis: Aufnahme über Hotkey oder schwebenden Button* | — |
+| Deutsch korrigieren | Modus `de_correct` |
+| Deutsch → Englisch | Modus `de_to_en` |
+| Einstellungen… | Einstellungs-Dialog |
+| Schwebender Aufnahme-Button | Button ein-/ausblenden (Häkchen) |
+| Über Schnack… | Version, Datum, Lizenz |
 | Auf Updates prüfen | Manueller Update-Check |
-| Beenden | Beendet das Programm |
+| Beenden | Programm beenden |
 
 ### Modi
 
@@ -117,49 +112,47 @@ Rechtsklick auf das Tray-Icon:
 
 ## Einstellungen
 
-Einstellungsdatei: `%APPDATA%\Schnack\settings.json`
+Einstellungsdatei: `%APPDATA%\Schnack\settings.json` (Schema-Version 2, automatische Migration)
 
 | Feld | Standard | Beschreibung |
 |------|---------|-------------|
-| `settingsSchema` | `1` | Interne Version der Einstellungsdatei (Migration) |
+| `backendProvider` | `openai` | Gewählter Stack: `openai` oder `claude` |
 | `defaultMode` | `de_correct` | Aktiver Modus beim Start |
-| `openAiTranscriptionModel` | `gpt-4o-mini-transcribe` | OpenAI Whisper-Modell für STT |
-| `claudeModel` | `claude-haiku-4-5` | Claude-Modell für die Verarbeitung |
-| `claudeMaxTokens` | `4096` | Maximale Ausgabelänge |
+| `openAiTranscriptionModel` | `gpt-4o-mini-transcribe` | OpenAI-STT-Modell |
+| `openAiChatModel` | `gpt-4o-mini` | OpenAI-Chat-Modell (Textverarbeitung) |
+| `openAiChatMaxTokens` | `4096` | Maximale Ausgabelänge (OpenAI) |
+| `claudeModel` | `claude-haiku-4-5` | Claude-Modell (Textverarbeitung) |
+| `claudeMaxTokens` | `4096` | Maximale Ausgabelänge (Claude) |
+| `whisperModel` | `large-v3-turbo` | Lokales Whisper-Modell (Claude-Backend) |
+| `whisperUseGpu` | `false` | CUDA-GPU für Whisper nutzen |
 | `hotkey` | `Ctrl+Alt+S` | Globaler Aufnahme-Hotkey |
-| `restoreClipboard` | `true` | Vorherigen Clipboard-Inhalt wiederherstellen |
+| `restoreClipboard` | `true` | Vorherigen Clipboard-Text wiederherstellen |
 | `preferClipboardFreeInsertion` | `true` | Unicode-Tastatur statt Clipboard+Strg+V (empfohlen) |
-| `debugLogging` | `false` | Serilog auf **Debug** (inkl. Pipeline-/NAudio-Phasen ohne Transkripte). Alternativ Umgebungsvariable `SCHNACK_DEBUG=1`. Nach Änderung in den Einstellungen wirkt die Stufe sofort (kein App-Neustart nötig). |
-| `microphoneDeviceId` | `null` | Mikrofon-ID (null = System-Standard) |
+| `debugLogging` | `false` | Ausführliches Log (ohne Transkripte). Alternativ Env `SCHNACK_DEBUG=1`. Wirkt sofort. |
+| `microphoneDeviceId` | `null` | Mikrofon (null = System-Standard) |
 
 Logs: `%APPDATA%\Schnack\logs\schnack-<datum>.log` (7 Tage Aufbewahrung)
 
-**Hotkey reagiert nicht:** oft `HotkeyAlreadyRegisteredException` (zweite Schnack-Instanz oder anderes Programm mit derselben Kombination) — andere Instanz beenden oder in den Einstellungen einen anderen Hotkey wählen.
-
-**Tray „Aufnahme stoppen“ hängt:** wurde behoben, indem die Verarbeitungs-Pipeline nicht mehr auf dem UI-Thread blockiert.
+**Hotkey reagiert nicht:** meist ist die Kombination schon belegt (zweite Schnack-Instanz oder anderes Programm) — andere Instanz beenden oder in den Einstellungen einen anderen Hotkey wählen.
 
 ---
 
 ## Bekannte Einschränkungen
 
-- **Nur Text-Clipboard**: Beim Einfügen des Textes wird nur der vorherige Text-Inhalt des Clipboards gesichert und wiederhergestellt. Bilder, Dateien und andere Clipboard-Formate gehen verloren, wenn `restoreClipboard = true` aktiv ist.
-- **Erststart-Download**: Das Whisper-Modell (ca. 1,6 GB für `large-v3-turbo`) muss einmalig heruntergeladen werden.
-- **Kein Auto-Stop**: Es gibt kein Voice Activity Detection (VAD). Die Aufnahme muss manuell gestoppt werden.
-- **Single-Instance**: Nur eine Instanz von Schnack kann gleichzeitig laufen.
-- **SetForegroundWindow**: In seltenen Fällen (z.B. bestimmte Sicherheits-Software) kann das automatische Fokussieren des Zielfensters fehlschlagen. Der Text liegt dann im Clipboard und muss manuell mit `Strg+V` eingefügt werden.
+- **Nur Text-Clipboard:** Beim Clipboard-Einfügeweg wird nur vorheriger Text gesichert/wiederhergestellt; Bilder und Dateien im Clipboard gehen verloren (`restoreClipboard = true`).
+- **Erststart-Download (Claude-Backend):** Das Whisper-Modell muss einmalig heruntergeladen werden (Einstellungen → Herunterladen).
+- **Kein Auto-Stop:** Keine Voice Activity Detection — Aufnahme wird manuell gestoppt.
+- **Single-Instance:** Nur eine Instanz gleichzeitig.
+- **SetForegroundWindow:** In seltenen Fällen kann das automatische Fokussieren des Zielfensters fehlschlagen. Der Text liegt dann in der Zwischenablage und wird per Tray-Hinweis zum manuellen Einfügen (`Strg+V`) angeboten.
 
 ---
 
-## Privacy-Hinweis
+## Privacy
 
-Schnack verwendet derzeit das **OpenAI-Backend**:
-
-- **Audio wird an OpenAI gesendet.** Die WAV-Aufnahme wird zur Transkription an die OpenAI Whisper API übertragen.
-- **Das Transkript wird an Anthropic gesendet.** Der transkribierte Text wird zur Korrektur bzw. Übersetzung an die Anthropic Claude API übermittelt.
-- Logs enthalten keine Transkripte, keine API-Keys und keine Audiodaten.
-- Temporäre WAV-Dateien (`%TEMP%\Schnack\`) werden nach der Verarbeitung automatisch gelöscht.
-
-> Ein lokales Whisper-Backend (Audio bleibt auf dem Rechner, nur Transkript geht an Anthropic) ist für eine spätere Version geplant.
+- **OpenAI-Backend:** Die WAV-Aufnahme geht zur Transkription an OpenAI; das Transkript wird dort auch korrigiert/übersetzt.
+- **Claude-Backend:** Audio bleibt vollständig lokal (Whisper.net); nur das Transkript geht zur Korrektur/Übersetzung an Anthropic.
+- Logs enthalten keine Transkripte, keine API-Keys, keine Audiodaten.
+- Temporäre WAV-Dateien (`%TEMP%\Schnack\`) werden nach der Verarbeitung gelöscht.
 
 ---
 
@@ -170,6 +163,7 @@ Schnack verwendet derzeit das **OpenAI-Backend**:
 | H.NotifyIcon.Wpf | MIT | WPF Tray-Icon |
 | NHotkey.Wpf | MIT | Globaler Hotkey |
 | NAudio | MIT | Audio-Aufnahme |
+| Whisper.net (+ Runtime) | MIT | Lokale Spracherkennung (Claude-Backend) |
+| Velopack | MIT | Installer + Auto-Update |
 | Microsoft.Extensions.* | MIT | DI, Logging, HTTP |
 | Serilog.* | Apache 2.0 | File-Logging |
-| System.Security.Cryptography.ProtectedData | MIT | DPAPI-Verschlüsselung |

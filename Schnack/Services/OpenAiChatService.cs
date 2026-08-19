@@ -80,7 +80,7 @@ public sealed class OpenAiChatService : IPostProcessingService
 
         if (!response.IsSuccessStatusCode)
         {
-            await LogSanitizedApiErrorAsync(response, ct);
+            await ApiErrorLog.LogSanitizedAsync(response, _logger, "OpenAI", ct);
             response.EnsureSuccessStatusCode();
         }
 
@@ -92,22 +92,5 @@ public sealed class OpenAiChatService : IPostProcessingService
             _logger.LogWarning("OpenAI Chat finish_reason=length; Antwort möglicherweise abgeschnitten");
 
         return new ClaudeProcessResult(choice.Message.Content.Trim(), truncated);
-    }
-
-    private async Task LogSanitizedApiErrorAsync(HttpResponseMessage response, CancellationToken ct)
-    {
-        try
-        {
-            var body = await response.Content.ReadAsStringAsync(ct);
-            using var doc = JsonDocument.Parse(body);
-            var err = doc.RootElement.GetProperty("error");
-            var type = err.TryGetProperty("type", out var t) ? t.GetString() : null;
-            var code = err.TryGetProperty("code", out var c) ? c.GetString() : null;
-            _logger.LogWarning("OpenAI API error type={Type} code={Code} status={Status}", type, code, (int)response.StatusCode);
-        }
-        catch
-        {
-            _logger.LogWarning("OpenAI API error status={Status}", (int)response.StatusCode);
-        }
     }
 }

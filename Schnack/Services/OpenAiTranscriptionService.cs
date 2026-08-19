@@ -65,7 +65,7 @@ public sealed class OpenAiTranscriptionService : ITranscriptionService
 
         if (!response.IsSuccessStatusCode)
         {
-            await LogSanitizedApiErrorAsync(response, ct);
+            await ApiErrorLog.LogSanitizedAsync(response, _logger, "OpenAI", ct);
             response.EnsureSuccessStatusCode();
         }
 
@@ -76,21 +76,4 @@ public sealed class OpenAiTranscriptionService : ITranscriptionService
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask; // keine Ressourcen freizugeben
-
-    private async Task LogSanitizedApiErrorAsync(HttpResponseMessage response, CancellationToken ct)
-    {
-        try
-        {
-            var body = await response.Content.ReadAsStringAsync(ct);
-            using var doc = System.Text.Json.JsonDocument.Parse(body);
-            var err = doc.RootElement.GetProperty("error");
-            var type = err.TryGetProperty("type", out var t) ? t.GetString() : null;
-            var code = err.TryGetProperty("code", out var c) ? c.GetString() : null;
-            _logger.LogWarning("OpenAI API error type={Type} code={Code} status={Status}", type, code, (int)response.StatusCode);
-        }
-        catch
-        {
-            _logger.LogWarning("OpenAI API error status={Status}", (int)response.StatusCode);
-        }
-    }
 }

@@ -2,6 +2,11 @@ bin/
 obj/
 *.user
 *.suo
+*.bak
+*.tmp
+*.swp
+~$*
+.vs/
 appsettings.local.json
 secrets.dat
 openai-secrets.dat
@@ -13,5 +18,6 @@ releases/
 logs/
 *.log
 .env
-.vs/
 .claude/settings.local.json
+*conflict*
+*Conflict*

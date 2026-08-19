@@ -6,6 +6,7 @@ public interface ITrayService : IDisposable
 {
     void Initialize();
     void UpdateState(RecordingState state);
+    void UpdateMode(DictationMode mode);
     void ShowBalloonTip(string title, string message);
 
     event EventHandler<DictationMode>? ModeChangeRequested;

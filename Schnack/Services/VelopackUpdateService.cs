@@ -30,7 +30,14 @@ public sealed class VelopackUpdateService : IUpdateService
         _checker = checker;
     }
 
-    public async Task CheckOnStartupAsync(CancellationToken ct = default)
+    public Task CheckOnStartupAsync(CancellationToken ct = default) =>
+        CheckCoreAsync(notifyOnNoUpdateOrError: false, ct);
+
+    public Task CheckAndPromptAsync(CancellationToken ct = default) =>
+        CheckCoreAsync(notifyOnNoUpdateOrError: true, ct);
+
+    // Beim Start-Check keine "aktuell"/Fehler-Balloons, damit der App-Start ungestört bleibt.
+    private async Task CheckCoreAsync(bool notifyOnNoUpdateOrError, CancellationToken ct)
     {
         try
         {
@@ -43,6 +50,11 @@ public sealed class VelopackUpdateService : IUpdateService
                 UpdateAvailable?.Invoke(this, new UpdateAvailableEventArgs { NewVersion = version });
                 _trayService.ShowBalloonTip("Update verfügbar",
                     $"Update auf v{version} verfügbar – im Tray-Menü installieren.");
+            }
+            else if (notifyOnNoUpdateOrError)
+            {
+                _trayService.ShowBalloonTip("Schnack ist aktuell",
+                    "Schnack ist auf dem neuesten Stand.");
             }
             else
             {
@@ -52,37 +64,10 @@ public sealed class VelopackUpdateService : IUpdateService
         catch (OperationCanceledException) { }
         catch (Exception ex)
         {
-            // Kein Balloon bei Startfehler — App-Start unbeeinträchtigt
-            _logger.LogWarning("Update check failed on startup: {Type}", ex.GetType().Name);
-        }
-    }
-
-    public async Task CheckAndPromptAsync(CancellationToken ct = default)
-    {
-        try
-        {
-            var info = await _checker.CheckForUpdatesAsync(ct);
-            if (info != null)
-            {
-                _pendingUpdate = info;
-                var version = info.TargetFullRelease.Version.ToString();
-                _logger.LogInformation("Update available: {Version}", version);
-                UpdateAvailable?.Invoke(this, new UpdateAvailableEventArgs { NewVersion = version });
-                _trayService.ShowBalloonTip("Update verfügbar",
-                    $"Update auf v{version} verfügbar – im Tray-Menü installieren.");
-            }
-            else
-            {
-                _trayService.ShowBalloonTip("Schnack ist aktuell",
-                    $"Schnack ist auf dem neuesten Stand.");
-            }
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
-            _logger.LogWarning("Manual update check failed: {Type}", ex.GetType().Name);
-            _trayService.ShowBalloonTip("Update-Check fehlgeschlagen",
-                "Keine Verbindung zu GitHub.");
+            _logger.LogWarning("Update check failed: {Type}", ex.GetType().Name);
+            if (notifyOnNoUpdateOrError)
+                _trayService.ShowBalloonTip("Update-Check fehlgeschlagen",
+                    "Keine Verbindung zu GitHub.");
         }
     }
 

@@ -39,7 +39,7 @@
 
         <TextBlock Grid.Row="2" TextWrapping="Wrap" VerticalAlignment="Top" Margin="0,16,0,16"
                    Foreground="#444" FontSize="12"
-                   Text="Diktieren, transkribieren (OpenAI), mit Claude glätten oder übersetzen — Ergebnis an der Cursorposition einfügen. Persönliches Tray-Tool für Windows 11."/>
+                   Text="Diktieren, transkribieren, korrigieren oder übersetzen — Ergebnis an der Cursorposition einfügen. Backend wählbar: OpenAI (Cloud) oder Claude (lokales Whisper + Anthropic). Persönliches Tray-Tool für Windows 11."/>
 
         <Button Grid.Row="3" Content="Schließen" Width="100" HorizontalAlignment="Center"
                 IsDefault="True" IsCancel="True" Click="OnCloseClick"/>

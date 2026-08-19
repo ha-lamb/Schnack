@@ -1,5 +1,3 @@
-using System.Net;
-using System.Net.Http;
 using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
@@ -57,15 +55,9 @@ public partial class App : Application
     private IHotkeyService? _hotkeyService;
     private ISettingsService? _settingsService;
     private IRecordingService? _recordingService;
-    private ITextInsertionService? _textInsertionService;
     private IFloatingRecordUi? _floatingRecordUi;
     private IUpdateService? _updateService;
-
-    // Thread-safe state: values from RecordingState enum
-    private int _recordingState;
-    private nint _cachedTargetHwnd;
-    private CancellationTokenSource? _pipelineCts;
-    private DictationMode _currentMode = DictationMode.DeCorrect;
+    private IDictationOrchestrator? _orchestrator;
     private LoggingLevelSwitch? _logLevelSwitch;
 
     protected override async void OnStartup(StartupEventArgs e)
@@ -99,10 +91,8 @@ public partial class App : Application
         ApplyDebugLogLevelFromSettings();
 
         var settings = _settingsService.Settings;
-        _currentMode = settings.DefaultMode == "de_to_en" ? DictationMode.DeToEn : DictationMode.DeCorrect;
 
         _recordingService = _serviceProvider.GetRequiredService<IRecordingService>();
-        _textInsertionService = _serviceProvider.GetRequiredService<ITextInsertionService>();
 
         _trayService = _serviceProvider.GetRequiredService<ITrayService>();
         _trayService.ModeChangeRequested += OnModeChangeRequested;
@@ -120,6 +110,10 @@ public partial class App : Application
         _floatingRecordUi.ToggleRecordingRequested += OnFloatingToggleRecordingRequested;
         _floatingRecordUi.VisibilityChanged += OnFloatingVisibilityChanged;
         _floatingRecordUi.SetRecordingState(RecordingState.Idle);
+
+        _orchestrator = _serviceProvider.GetRequiredService<IDictationOrchestrator>();
+        _orchestrator.CurrentMode = settings.DefaultMode == "de_to_en" ? DictationMode.DeToEn : DictationMode.DeCorrect;
+        _trayService.UpdateMode(_orchestrator.CurrentMode);
 
         _hotkeyService = _serviceProvider.GetRequiredService<IHotkeyService>();
         try
@@ -154,7 +148,7 @@ public partial class App : Application
         _updateService.BeforeApplyRestart += OnBeforeApplyRestart;
         _ = _updateService.CheckOnStartupAsync();
 
-        _logger.LogInformation("Schnack ready. Mode: {Mode}, Backend: {Backend}", _currentMode, settings.BackendProvider);
+        _logger.LogInformation("Schnack ready. Mode: {Mode}, Backend: {Backend}", _orchestrator.CurrentMode, settings.BackendProvider);
     }
 
     private void ShowFirstRunDialog()
@@ -212,7 +206,7 @@ public partial class App : Application
 
     private void OnApplyUpdateRequested(object? sender, EventArgs e)
     {
-        if ((RecordingState)_recordingState != RecordingState.Idle)
+        if (_orchestrator != null && _orchestrator.State != RecordingState.Idle)
         {
             var r = MessageBox.Show(
                 "Schnack startet jetzt neu — laufende Aufnahme oder Verarbeitung geht verloren. Fortfahren?",
@@ -223,26 +217,14 @@ public partial class App : Application
     }
 
     /// <summary>Hotkey und schwebender Button: Vordergrund-Fenster sofort lesen (NOACTIVATE-Floater stiehlt keinen Fokus).</summary>
-    private void TryToggleRecordingUserAction()
-    {
-        var hwnd = Win32.GetForegroundWindow();
-
-        int prev = Interlocked.CompareExchange(ref _recordingState, (int)RecordingState.Recording, (int)RecordingState.Idle);
-        if (prev == (int)RecordingState.Idle)
-        {
-            _cachedTargetHwnd = hwnd;
-            StartRecording();
-            return;
-        }
-
-        prev = Interlocked.CompareExchange(ref _recordingState, (int)RecordingState.Processing, (int)RecordingState.Recording);
-        if (prev == (int)RecordingState.Recording)
-            StopAndProcess();
-    }
+    private void TryToggleRecordingUserAction() =>
+        _ = _orchestrator?.ToggleRecordingAsync(Win32.GetForegroundWindow());
 
     private void OnModeChangeRequested(object? sender, DictationMode mode)
     {
-        _currentMode = mode;
+        if (_orchestrator != null)
+            _orchestrator.CurrentMode = mode;
+        _trayService?.UpdateMode(mode);
         _logger?.LogInformation("Mode changed to {Mode}", mode);
     }
 
@@ -285,159 +267,6 @@ public partial class App : Application
     private void OnExitRequested(object? sender, EventArgs e)
     {
         CleanupAndShutdown();
-    }
-
-    private void StartRecording()
-    {
-        try
-        {
-            var tempDir = _settingsService?.Settings.TempAudioPath
-                ?? Path.Combine(Path.GetTempPath(), "Schnack");
-            var wavPath = Path.Combine(tempDir, $"rec_{DateTime.UtcNow:yyyyMMdd_HHmmss}.wav");
-
-            _recordingService!.StartRecording(wavPath);
-            _trayService?.UpdateState(RecordingState.Recording);
-            _floatingRecordUi?.SetRecordingState(RecordingState.Recording);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex.GetType().Name + ": Failed to start recording");
-            Interlocked.Exchange(ref _recordingState, (int)RecordingState.Idle);
-            _trayService?.UpdateState(RecordingState.Idle);
-            _floatingRecordUi?.SetRecordingState(RecordingState.Idle);
-            _trayService?.ShowBalloonTip("Mikrofon-Fehler",
-                "Aufnahme konnte nicht gestartet werden. Einstellungen prüfen.");
-        }
-    }
-
-    private void StopAndProcess()
-    {
-        _pipelineCts = new CancellationTokenSource();
-        var token = _pipelineCts.Token;
-        // Pipeline darf nicht auf dem UI-Thread laufen: StopRecording() blockiert mit Wait() und
-        // verklemmt sich mit Tray/WPF und NAudio-Callbacks.
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await RunPipelineAsync(token);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex.GetType().Name + ": Pipeline task faulted");
-            }
-        }, token);
-    }
-
-    private async Task RunPipelineAsync(CancellationToken ct)
-    {
-        string? wavPath = null;
-        try
-        {
-            _logger?.LogDebug("Pipeline start, thread {Thread}", Environment.CurrentManagedThreadId);
-            wavPath = _recordingService!.StopRecording();
-            _logger?.LogDebug("Recording stop completed, wav path length {Len}", wavPath.Length);
-            _trayService?.UpdateState(RecordingState.Processing);
-            _floatingRecordUi?.SetRecordingState(RecordingState.Processing);
-
-            // Per-run service resolution based on current BackendProvider setting
-            var backend = _settingsService!.Settings.BackendProvider;
-            var transcriptionService = _serviceProvider!.GetRequiredKeyedService<ITranscriptionService>(backend.ToString());
-            var postProcessingService = _serviceProvider!.GetRequiredKeyedService<IPostProcessingService>(backend.ToString());
-
-            _logger?.LogDebug("Transcription phase, backend: {Backend}", backend);
-            var transcript = await transcriptionService.TranscribeAsync(wavPath, ct);
-            _logger?.LogDebug("Transcription finished, empty: {Empty}", string.IsNullOrWhiteSpace(transcript));
-
-            if (string.IsNullOrWhiteSpace(transcript))
-            {
-                _trayService?.ShowBalloonTip("Schnack", "Keine Sprache erkannt.");
-                return;
-            }
-
-            _logger?.LogDebug("Post-processing phase");
-            var result = await postProcessingService.ProcessAsync(transcript, _currentMode, ct);
-            _logger?.LogDebug("Text insertion phase");
-            if (_cachedTargetHwnd == 0)
-            {
-                await Application.Current.Dispatcher.InvokeAsync(() => Clipboard.SetText(result.Text));
-                _trayService?.ShowBalloonTip("Kein Zielfenster",
-                    "Text liegt in der Zwischenablage – bitte mit Strg+V einfügen.");
-                return;
-            }
-            await _textInsertionService!.InsertTextAsync(_cachedTargetHwnd, result.Text, ct);
-
-            if (result.IsPossiblyTruncated)
-            {
-                _trayService?.ShowBalloonTip(
-                    "Hinweis",
-                    "Die Antwort könnte abgeschnitten sein. 'Max Tokens' in den Einstellungen erhoehen.");
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            _logger?.LogInformation("Pipeline cancelled");
-        }
-        catch (HttpRequestException ex) when (ex.Message.StartsWith("OpenAI:", StringComparison.Ordinal))
-        {
-            _trayService?.ShowBalloonTip("OpenAI", "OpenAI-Anfrage abgelehnt oder API-Key ungültig.");
-        }
-        catch (HttpRequestException ex) when (
-            ex.StatusCode == HttpStatusCode.Unauthorized ||
-            ex.StatusCode == HttpStatusCode.Forbidden)
-        {
-            _trayService?.ShowBalloonTip("API-Key ungültig", "API-Key ungültig oder abgelaufen.");
-        }
-        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests)
-        {
-            _trayService?.ShowBalloonTip("Rate Limit", "Rate Limit erreicht – kurz warten.");
-        }
-        catch (HttpRequestException)
-        {
-            _trayService?.ShowBalloonTip("Netzwerk", "Keine Verbindung zum API-Backend.");
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("Aufnahme konnte nicht", StringComparison.Ordinal))
-        {
-            _trayService?.ShowBalloonTip("Mikrofon antwortet nicht",
-                "Mikrofon prüfen – Verbindung oder Treiber wurde unterbrochen.");
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("Kein Zielfenster", StringComparison.Ordinal))
-        {
-            _trayService?.ShowBalloonTip("Kein Zielfenster",
-                "Zielfenster konnte nicht erkannt werden. Text liegt in der Zwischenablage – bitte mit Strg+V einfügen.");
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("OPENAI_API_KEY", StringComparison.Ordinal))
-        {
-            _trayService?.ShowBalloonTip("OpenAI API-Key fehlt",
-                "OPENAI_API_KEY setzen oder OpenAI-Key in den Einstellungen speichern.");
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("ANTHROPIC_API_KEY", StringComparison.Ordinal))
-        {
-            _trayService?.ShowBalloonTip("Anthropic API-Key fehlt",
-                "ANTHROPIC_API_KEY nicht gesetzt. Umgebungsvariable setzen und neu starten.");
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("nicht heruntergeladen", StringComparison.Ordinal))
-        {
-            _trayService?.ShowBalloonTip("Whisper-Modell fehlt",
-                "Whisper-Modell in den Einstellungen herunterladen.");
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex.GetType().Name + ": Pipeline error");
-            _trayService?.ShowBalloonTip("Fehler", "Verarbeitung fehlgeschlagen.");
-        }
-        finally
-        {
-            _logger?.LogDebug("Pipeline finally, resetting state");
-            if (wavPath != null && File.Exists(wavPath))
-            {
-                try { File.Delete(wavPath); }
-                catch { /* ignore cleanup failures */ }
-            }
-            Interlocked.Exchange(ref _recordingState, (int)RecordingState.Idle);
-            _trayService?.UpdateState(RecordingState.Idle);
-            _floatingRecordUi?.SetRecordingState(RecordingState.Idle);
-        }
     }
 
     private ServiceProvider BuildServiceProvider()
@@ -492,6 +321,7 @@ public partial class App : Application
         services.AddSingleton<IUpdateChecker>(
             _ => new VelopackUpdateChecker(VelopackUpdateService.RepoUrl));
         services.AddSingleton<IUpdateService, VelopackUpdateService>();
+        services.AddSingleton<IDictationOrchestrator, DictationOrchestrator>();
 
         services.AddTransient<SettingsViewModel>();
         services.AddTransient<SettingsWindow>();
@@ -504,7 +334,7 @@ public partial class App : Application
     private void CleanupAndShutdown()
     {
         _logger?.LogInformation("Schnack shutting down");
-        _pipelineCts?.Cancel();
+        _orchestrator?.Dispose();
         _hotkeyService?.Unregister();
         _floatingRecordUi?.Dispose();
         _trayService?.Dispose();

@@ -8,15 +8,10 @@ Diese Datei richtet sich ausschließlich an den Maintainer (Hauke).
 
 Nur einmalig nötig, danach per Release-Workflow.
 
-### 1. GitHub-Repo anlegen
+### 1. GitHub-Repo
 
-- Neues Repo `Schnack` auf GitHub anlegen (public empfohlen, MIT-Lizenz).
-- Initial pushen:
-  ```pwsh
-  cd C:\Projekte\Schnack
-  git remote add origin https://github.com/ha-lamb/Schnack.git
-  git push -u origin main
-  ```
+- Repo `ha-lamb/Schnack` existiert (aktuell **privat**), Remote ist eingerichtet.
+- **Wichtig:** Der Update-Check in der App läuft anonym — er funktioniert erst, wenn das Repo **public** ist. Release-Upload per Token funktioniert auch mit privatem Repo.
 
 ### 2. `vpk` CLI installieren
 
@@ -87,7 +82,7 @@ Muss grün sein, keine neuen Warnungen.
 ### 4. GitHub-Release prüfen
 
 - Auf `https://github.com/ha-lamb/Schnack/releases` prüfen:
-  - `Schnack-Setup.exe` angehängt?
+  - `Schnack-win-Setup.exe` angehängt? (vpk-Namenskonvention: mit `win`-Channel)
   - `Schnack-1.4.0-full.nupkg` angehängt?
   - Ab dem 2. Release auch `Schnack-1.4.0-delta.nupkg`?
 - Ggf. Release-Notes manuell ergänzen.
@@ -95,7 +90,7 @@ Muss grün sein, keine neuen Warnungen.
 ### 5. Verteilung (Erstinstallation)
 
 - GitHub-Release-URL teilen.
-- Empfänger lädt `Schnack-Setup.exe` herunter und führt sie aus.
+- Empfänger lädt `Schnack-win-Setup.exe` herunter und führt sie aus.
 - Installation erfolgt per-user in `%LocalAppData%\Schnack\` (kein UAC-Prompt).
 
 ---
@@ -105,6 +100,9 @@ Muss grün sein, keine neuen Warnungen.
 **„vpk: Der Begriff 'vpk' wird nicht erkannt"**
 → `dotnet tool install -g vpk` ausführen, dann neues Terminal öffnen.
 → Sicherstellen, dass `%USERPROFILE%\.dotnet\tools` im `PATH` ist.
+
+**vpk startet nicht (falsche .NET-Version)**
+→ vpk 0.0.1298 zielt auf .NET 9; der Rechner hat .NET 10. `build-release.ps1` setzt dafür `DOTNET_ROLL_FORWARD=Major` — bei manuellen `vpk`-Aufrufen ggf. selbst setzen.
 
 **„VPK_GITHUB_TOKEN ist nicht gesetzt"**
 → Token neu generieren (oben Schritt 3), `setx VPK_GITHUB_TOKEN "ghp_..."`, Terminal neu starten.
