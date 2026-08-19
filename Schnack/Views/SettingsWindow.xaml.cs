@@ -62,8 +62,8 @@ public partial class SettingsWindow : Window
         if (ViewModel.IsDirty)
         {
             var result = MessageBox.Show(
-                "Ungespeicherte Änderungen verwerfen?",
-                "Schnack – Einstellungen",
+                Localization.Strings.Settings_DiscardChanges,
+                Localization.Strings.Settings_Title,
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
 

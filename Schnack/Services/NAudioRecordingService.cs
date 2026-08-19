@@ -65,7 +65,8 @@ public sealed class NAudioRecordingService : IRecordingService
         if (!_stopTcs.Task.Wait(TimeSpan.FromSeconds(5)))
         {
             _logger.LogError("Recording stop timeout after 5s — NAudio did not signal completion");
-            throw new InvalidOperationException("Aufnahme konnte nicht sauber beendet werden.");
+            throw new SchnackException(SchnackError.MicrophoneStopTimeout,
+                "NAudio did not signal RecordingStopped within 5s");
         }
 
         if (_settings.Settings.DebugLogging)

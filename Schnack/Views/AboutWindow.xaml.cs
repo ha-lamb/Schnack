@@ -15,7 +15,7 @@ public partial class AboutWindow : Window
         var date = asm.GetCustomAttributes<AssemblyMetadataAttribute>()
             .FirstOrDefault(a => a.Key == "ReleaseDate")?.Value ?? "–";
 
-        VersionText.Text = $"Version {version}";
+        VersionText.Text = Localization.Strings.Format(nameof(Localization.Strings.About_Version), version);
         DateText.Text = date;
         AuthorText.Text = author;
     }

@@ -35,15 +35,15 @@ public sealed class WhisperLocalTranscriptionService : ITranscriptionService
         var useGpu = _settings.Settings.WhisperUseGpu;
 
         if (!_downloadService.IsModelDownloaded(modelName))
-            throw new InvalidOperationException(
-                $"Whisper-Modell '{modelName}' ist nicht heruntergeladen. Bitte in den Einstellungen herunterladen.");
+            throw new SchnackException(SchnackError.WhisperModelMissing,
+                $"Whisper model '{modelName}' not downloaded");
 
         var factory = await GetOrCreateFactoryAsync(modelName, useGpu, ct);
 
         _logger.LogInformation("Whisper local transcription start, model: {Model}", modelName);
 
         await using var processor = factory.CreateBuilder()
-            .WithLanguage("de")
+            .WithLanguage(_settings.Settings.DictationLanguage.ToIsoCode())
             .Build();
 
         await using var fileStream = File.OpenRead(wavFilePath);

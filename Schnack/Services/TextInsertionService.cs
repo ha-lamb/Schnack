@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Threading;
 using Microsoft.Extensions.Logging;
 using Schnack.Interop;
+using Schnack.Models;
 
 namespace Schnack.Services;
 
@@ -31,7 +32,8 @@ public sealed class TextInsertionService : ITextInsertionService
                 try { Clipboard.SetText(text, TextDataFormat.UnicodeText); }
                 catch (Exception ex) { _logger.LogWarning(ex.GetType().Name + ": Clipboard set failed (no target)"); }
             }, DispatcherPriority.Normal);
-            throw new InvalidOperationException("Kein Zielfenster erkannt – Text liegt in der Zwischenablage.");
+            throw new SchnackException(SchnackError.NoTargetWindow,
+                "No target window cached; text placed in clipboard");
         }
 
         var op = Application.Current.Dispatcher.InvokeAsync(

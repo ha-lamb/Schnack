@@ -40,12 +40,10 @@ public sealed class OpenAiChatService : IPostProcessingService
     public async Task<ClaudeProcessResult> ProcessAsync(string transcript, DictationMode mode, CancellationToken ct = default)
     {
         var apiKey = _secretService.GetOpenAiApiKey()
-            ?? throw new InvalidOperationException("OPENAI_API_KEY ist nicht gesetzt und kein OpenAI-Key in den Einstellungen gespeichert.");
+            ?? throw new SchnackException(SchnackError.MissingOpenAiKey, "OPENAI_API_KEY not set and no stored key");
 
         var model = _settings.Settings.OpenAiChatModel;
-        var prompt = DictationPrompts.Build(
-            mode == DictationMode.DeCorrect ? DictationPrompts.DeCorrect : DictationPrompts.DeToEn,
-            transcript);
+        var prompt = DictationPrompts.Build(_settings.Settings.DictationLanguage, mode, transcript);
 
         var requestBody = new ChatRequest
         {
@@ -72,11 +70,11 @@ public sealed class OpenAiChatService : IPostProcessingService
 
         _logger.LogInformation("OpenAI Chat response status: {Status}", (int)response.StatusCode);
 
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
-            throw new HttpRequestException("OpenAI: API-Key ungültig", null, response.StatusCode);
+        if (response.StatusCode == HttpStatusCode.Unauthorized || response.StatusCode == HttpStatusCode.Forbidden)
+            throw new SchnackException(SchnackError.ApiKeyInvalid, "OpenAI rejected the API key");
 
         if (response.StatusCode == HttpStatusCode.TooManyRequests)
-            throw new HttpRequestException("OpenAI: Rate Limit erreicht", null, response.StatusCode);
+            throw new SchnackException(SchnackError.RateLimit, "OpenAI rate limit reached");
 
         if (!response.IsSuccessStatusCode)
         {
@@ -89,7 +87,7 @@ public sealed class OpenAiChatService : IPostProcessingService
         var choice = chatResponse.Choices[0];
         var truncated = string.Equals(choice.FinishReason, "length", StringComparison.Ordinal);
         if (truncated)
-            _logger.LogWarning("OpenAI Chat finish_reason=length; Antwort möglicherweise abgeschnitten");
+            _logger.LogWarning("OpenAI Chat finish_reason=length; response may be truncated");
 
         return new ClaudeProcessResult(choice.Message.Content.Trim(), truncated);
     }

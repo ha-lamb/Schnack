@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using Schnack.Models;
 using Schnack.Services.Internal;
 
 namespace Schnack.Services;
@@ -32,10 +33,11 @@ public sealed class OpenAiTranscriptionService : ITranscriptionService
     public async Task<string> TranscribeAsync(string wavFilePath, CancellationToken ct = default)
     {
         var apiKey = _secretService.GetOpenAiApiKey()
-            ?? throw new InvalidOperationException("OPENAI_API_KEY ist nicht gesetzt und kein OpenAI-Key in den Einstellungen gespeichert.");
+            ?? throw new SchnackException(SchnackError.MissingOpenAiKey, "OPENAI_API_KEY not set and no stored key");
 
         var model = _settings.Settings.OpenAiTranscriptionModel;
-        _logger.LogInformation("OpenAI transcription request, model: {Model}", model);
+        var language = _settings.Settings.DictationLanguage;
+        _logger.LogInformation("OpenAI transcription request, model: {Model}, language: {Language}", model, language);
 
         using var client = _httpClientFactory.CreateClient("OpenAi");
 
@@ -47,9 +49,11 @@ public sealed class OpenAiTranscriptionService : ITranscriptionService
                 var fileContent = new StreamContent(fileStream);
                 form.Add(fileContent, "file", Path.GetFileName(wavFilePath));
                 form.Add(new StringContent(model, Encoding.UTF8), "model");
-                form.Add(new StringContent("de", Encoding.UTF8), "language");
+                form.Add(new StringContent(language.ToIsoCode(), Encoding.UTF8), "language");
                 form.Add(new StringContent("text", Encoding.UTF8), "response_format");
-                form.Add(new StringContent("Diktat auf Deutsch.", Encoding.UTF8), "prompt");
+                form.Add(new StringContent(
+                    language == AppLanguage.En ? "Dictation in English." : "Diktat auf Deutsch.",
+                    Encoding.UTF8), "prompt");
 
                 using var req = new HttpRequestMessage(HttpMethod.Post, "v1/audio/transcriptions") { Content = form };
                 req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
@@ -60,8 +64,11 @@ public sealed class OpenAiTranscriptionService : ITranscriptionService
 
         _logger.LogInformation("OpenAI transcription response status: {Status}", (int)response.StatusCode);
 
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
-            throw new HttpRequestException("OpenAI: API-Key ungültig", null, response.StatusCode);
+        if (response.StatusCode == HttpStatusCode.Unauthorized || response.StatusCode == HttpStatusCode.Forbidden)
+            throw new SchnackException(SchnackError.ApiKeyInvalid, "OpenAI rejected the API key");
+
+        if (response.StatusCode == HttpStatusCode.TooManyRequests)
+            throw new SchnackException(SchnackError.RateLimit, "OpenAI rate limit reached");
 
         if (!response.IsSuccessStatusCode)
         {

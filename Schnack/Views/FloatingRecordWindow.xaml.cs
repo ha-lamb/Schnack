@@ -23,7 +23,11 @@ public partial class FloatingRecordWindow : Window
     {
         InitializeComponent();
         InitAnimations();
+        ApplyLocalization();
     }
+
+    /// <summary>Das Fenster wird zwischengespeichert und überlebt Sprachwechsel — Texte daher nachziehbar.</summary>
+    public void ApplyLocalization() => CloseMenuItem.Header = Localization.Strings.Common_Close;
 
     private void InitAnimations()
     {

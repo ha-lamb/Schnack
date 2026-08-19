@@ -38,10 +38,10 @@ public sealed class ClaudeService : IPostProcessingService
     public async Task<ClaudeProcessResult> ProcessAsync(string transcript, DictationMode mode, CancellationToken ct = default)
     {
         var apiKey = _secretService.GetApiKey()
-            ?? throw new InvalidOperationException("ANTHROPIC_API_KEY ist nicht gesetzt");
+            ?? throw new SchnackException(SchnackError.MissingAnthropicKey, "ANTHROPIC_API_KEY not set");
 
-        var prompt = BuildPrompt(transcript, mode);
         var settings = _settingsService.Settings;
+        var prompt = DictationPrompts.Build(settings.DictationLanguage, mode, transcript);
 
         var request = new MessagesRequest
         {
@@ -68,10 +68,10 @@ public sealed class ClaudeService : IPostProcessingService
         _logger.LogInformation("Claude API response status: {StatusCode}", (int)response.StatusCode);
 
         if (response.StatusCode == HttpStatusCode.Unauthorized || response.StatusCode == HttpStatusCode.Forbidden)
-            throw new HttpRequestException("API-Key ungültig oder abgelaufen", null, response.StatusCode);
+            throw new SchnackException(SchnackError.ApiKeyInvalid, "Anthropic rejected the API key");
 
         if (response.StatusCode == HttpStatusCode.TooManyRequests)
-            throw new HttpRequestException("Rate Limit erreicht", null, response.StatusCode);
+            throw new SchnackException(SchnackError.RateLimit, "Anthropic rate limit reached");
 
         if (!response.IsSuccessStatusCode)
         {
@@ -81,10 +81,10 @@ public sealed class ClaudeService : IPostProcessingService
 
         var responseJson = await response.Content.ReadAsStringAsync(ct);
         var parsed = JsonSerializer.Deserialize<MessagesResponse>(responseJson, JsonOptions)
-            ?? throw new InvalidOperationException("Leere Antwort von Claude");
+            ?? throw new SchnackException(SchnackError.EmptyApiResponse, "Anthropic returned an empty response");
 
         if (parsed.StopReason == "max_tokens")
-            _logger.LogWarning("Claude stop_reason=max_tokens; Antwort möglicherweise abgeschnitten");
+            _logger.LogWarning("Claude stop_reason=max_tokens; response may be truncated");
 
         var text = string.Concat(parsed.Content
             .Where(b => b.Type == "text" && b.Text != null)
@@ -94,8 +94,4 @@ public sealed class ClaudeService : IPostProcessingService
         return new ClaudeProcessResult(text, truncated);
     }
 
-    private static string BuildPrompt(string transcript, DictationMode mode) =>
-        DictationPrompts.Build(
-            mode == DictationMode.DeCorrect ? DictationPrompts.DeCorrect : DictationPrompts.DeToEn,
-            transcript);
 }

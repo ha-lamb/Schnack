@@ -9,6 +9,7 @@ using Serilog.Core;
 using Serilog.Events;
 using Velopack;
 using Schnack.Interop;
+using Schnack.Localization;
 using Schnack.Services.Internal;
 using Schnack.Models;
 using Schnack.Services;
@@ -24,9 +25,10 @@ public partial class App : Application
     {
         if (Environment.Version.Major < 10)
         {
+            // Läuft vor dem Laden der Settings — nutzt daher die Windows-Sprache
             var r = System.Windows.MessageBox.Show(
-                $"Schnack benötigt .NET 10 oder neuer (gefunden: {Environment.Version}).\n\nJetzt herunterladen?",
-                "Schnack – .NET 10 erforderlich",
+                Strings.Format(nameof(Strings.Startup_DotNetRequired), Environment.Version),
+                Strings.Startup_DotNetRequiredTitle,
                 System.Windows.MessageBoxButton.YesNo,
                 System.Windows.MessageBoxImage.Error);
             if (r == System.Windows.MessageBoxResult.Yes)
@@ -58,6 +60,7 @@ public partial class App : Application
     private IFloatingRecordUi? _floatingRecordUi;
     private IUpdateService? _updateService;
     private IDictationOrchestrator? _orchestrator;
+    private ILocalizationService? _localization;
     private LoggingLevelSwitch? _logLevelSwitch;
 
     protected override async void OnStartup(StartupEventArgs e)
@@ -81,7 +84,7 @@ public partial class App : Application
         _mutex = new Mutex(true, $"Schnack.Singleton.{Environment.UserName}", out bool isNew);
         if (!isNew)
         {
-            ShowTemporaryBalloon("Schnack läuft bereits");
+            ShowTemporaryBalloon(Strings.Balloon_AlreadyRunning);
             _mutex.Dispose();
             Shutdown(0);
             return;
@@ -96,6 +99,11 @@ public partial class App : Application
         ApplyDebugLogLevelFromSettings();
 
         var settings = _settingsService.Settings;
+
+        // Muss vor dem Tray-Aufbau laufen: dessen Menü-Header werden beim Erzeugen festgeschrieben
+        _localization = _serviceProvider.GetRequiredService<ILocalizationService>();
+        _localization.Apply(settings.UiLanguage);
+        _localization.LanguageChanged += OnLanguageChanged;
 
         _recordingService = _serviceProvider.GetRequiredService<IRecordingService>();
 
@@ -117,8 +125,9 @@ public partial class App : Application
         _floatingRecordUi.SetRecordingState(RecordingState.Idle);
 
         _orchestrator = _serviceProvider.GetRequiredService<IDictationOrchestrator>();
-        _orchestrator.CurrentMode = settings.DefaultMode == "de_to_en" ? DictationMode.DeToEn : DictationMode.DeCorrect;
-        _trayService.UpdateMode(_orchestrator.CurrentMode);
+        var startupChoice = DictationChoice.FromSettings(settings);
+        _orchestrator.CurrentMode = startupChoice.Mode;
+        _trayService.UpdateMode(startupChoice);
 
         _hotkeyService = _serviceProvider.GetRequiredService<IHotkeyService>();
         try
@@ -128,21 +137,20 @@ public partial class App : Application
         catch (Exception ex)
         {
             _logger.LogError(ex.GetType().Name + ": Failed to register hotkey");
-            _trayService.ShowBalloonTip("Schnack", $"Hotkey '{settings.Hotkey}' konnte nicht registriert werden.");
+            _trayService.ShowBalloonTip(Strings.Balloon_AppTitle,
+                Strings.Format(nameof(Strings.Startup_HotkeyFailed), settings.Hotkey));
         }
 
         // Startup validations
         var secretService = _serviceProvider.GetRequiredService<ISecretService>();
         if (secretService.GetApiKey() == null && settings.BackendProvider == BackendProvider.Claude)
         {
-            _trayService.ShowBalloonTip("Anthropic API-Key fehlt",
-                "ANTHROPIC_API_KEY setzen oder in den Einstellungen speichern, dann neu starten.");
+            _trayService.ShowBalloonTip(Strings.Error_MissingAnthropicKeyTitle, Strings.Error_MissingAnthropicKey);
         }
 
         if (secretService.GetOpenAiApiKey() == null && settings.BackendProvider == BackendProvider.OpenAi)
         {
-            _trayService.ShowBalloonTip("OpenAI API-Key fehlt",
-                "OPENAI_API_KEY setzen oder OpenAI-Key in den Einstellungen speichern.");
+            _trayService.ShowBalloonTip(Strings.Error_MissingOpenAiKeyTitle, Strings.Error_MissingOpenAiKey);
         }
 
         if (_settingsService.CreatedDefaultSettingsOnLastLoad)
@@ -193,6 +201,13 @@ public partial class App : Application
             _floatingRecordUi.ShowOrActivate();
     }
 
+    /// <summary>Tray-Menü und schwebender Button schreiben ihre Texte beim Erzeugen fest — beide neu bestücken.</summary>
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        _trayService?.RebuildMenu();
+        _floatingRecordUi?.ApplyLanguage();
+    }
+
     private void OnFloatingVisibilityChanged(object? sender, EventArgs e) =>
         _trayService?.UpdateFloatingButtonVisibility(_floatingRecordUi?.IsVisible ?? false);
 
@@ -214,8 +229,8 @@ public partial class App : Application
         if (_orchestrator != null && _orchestrator.State != RecordingState.Idle)
         {
             var r = MessageBox.Show(
-                "Schnack startet jetzt neu — laufende Aufnahme oder Verarbeitung geht verloren. Fortfahren?",
-                "Schnack – Update installieren", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                Strings.Update_RestartConfirm,
+                Strings.Update_RestartConfirmTitle, MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (r != MessageBoxResult.Yes) return;
         }
         _ = _updateService?.ApplyKnownUpdateAsync();
@@ -225,12 +240,25 @@ public partial class App : Application
     private void TryToggleRecordingUserAction() =>
         _ = _orchestrator?.ToggleRecordingAsync(Win32.GetForegroundWindow());
 
-    private void OnModeChangeRequested(object? sender, DictationMode mode)
+    private void OnModeChangeRequested(object? sender, DictationChoice choice)
     {
         if (_orchestrator != null)
-            _orchestrator.CurrentMode = mode;
-        _trayService?.UpdateMode(mode);
-        _logger?.LogInformation("Mode changed to {Mode}", mode);
+            _orchestrator.CurrentMode = choice.Mode;
+        _trayService?.UpdateMode(choice);
+
+        // Persistieren: die Transkriptions- und Postprocessing-Services lesen die Diktiersprache
+        // pro Lauf aus den Settings, und die Wahl soll den Neustart überleben.
+        if (_settingsService != null)
+        {
+            _settingsService.UpdateSettings(_settingsService.Settings with
+            {
+                DictationLanguage = choice.Language,
+                DefaultMode = choice.ModeValue
+            });
+            _ = _settingsService.SaveAsync();
+        }
+
+        _logger?.LogInformation("Dictation choice changed to {Language}/{Mode}", choice.Language, choice.Mode);
     }
 
     private void OnSettingsRequested(object? sender, EventArgs e)
@@ -238,9 +266,23 @@ public partial class App : Application
         Dispatcher.Invoke(() =>
         {
             var oldHotkey = _settingsService?.Settings.Hotkey;
+            var oldLanguage = _settingsService?.Settings.UiLanguage;
             var window = _serviceProvider?.GetRequiredService<SettingsWindow>();
             if (window == null) return;
             window.ShowDialog();
+
+            var newLanguage = _settingsService?.Settings.UiLanguage;
+            if (newLanguage != null && newLanguage != oldLanguage)
+                _localization?.Apply(newLanguage.Value);
+
+            // Diktat-Modus kann auch im Dialog geändert worden sein — Tray-Häkchen und Pipeline nachziehen
+            if (_settingsService != null)
+            {
+                var choice = DictationChoice.FromSettings(_settingsService.Settings);
+                if (_orchestrator != null)
+                    _orchestrator.CurrentMode = choice.Mode;
+                _trayService?.UpdateMode(choice);
+            }
 
             var newHotkey = _settingsService?.Settings.Hotkey;
             if (_hotkeyService != null && newHotkey != null && newHotkey != oldHotkey)
@@ -307,6 +349,7 @@ public partial class App : Application
             client.Timeout = TimeSpan.FromMinutes(3);
         });
 
+        services.AddSingleton<ILocalizationService, LocalizationService>();
         services.AddSingleton<ISettingsService, JsonSettingsService>();
         services.AddSingleton<ISecretService, DpapiSecretService>();
         services.AddSingleton<IRecordingService, NAudioRecordingService>();

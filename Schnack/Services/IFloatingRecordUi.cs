@@ -12,4 +12,7 @@ public interface IFloatingRecordUi : IDisposable
     void ShowOrActivate();
     void Hide();
     void SetRecordingState(RecordingState state);
+
+    /// <summary>Übernimmt die aktuelle Sprache ins bereits erzeugte Fenster (Kontextmenü).</summary>
+    void ApplyLanguage();
 }

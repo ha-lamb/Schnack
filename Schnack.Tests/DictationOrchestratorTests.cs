@@ -82,7 +82,7 @@ public class DictationOrchestratorTests
         _recording.Setup(r => r.StopRecording()).Returns(@"C:\nonexistent\rec.wav");
         _transcription.Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("hallo welt");
-        _postProcessing.Setup(p => p.ProcessAsync("hallo welt", DictationMode.DeCorrect, It.IsAny<CancellationToken>()))
+        _postProcessing.Setup(p => p.ProcessAsync("hallo welt", DictationMode.Correct, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ClaudeProcessResult("Hallo Welt.", false));
         var sut = CreateSut();
 
@@ -91,6 +91,44 @@ public class DictationOrchestratorTests
 
         Assert.Equal(RecordingState.Idle, sut.State);
         _textInsertion.Verify(t => t.InsertTextAsync((nint)123, "Hallo Welt.", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // Diese Zuordnung lief früher über deutsche Exception-Texte und brach still bei Übersetzung.
+    [Theory]
+    [InlineData(SchnackError.MicrophoneStopTimeout, "Mikrofon antwortet nicht")]
+    [InlineData(SchnackError.NoTargetWindow, "Kein Zielfenster")]
+    [InlineData(SchnackError.MissingOpenAiKey, "OpenAI API-Key fehlt")]
+    [InlineData(SchnackError.MissingAnthropicKey, "Anthropic API-Key fehlt")]
+    [InlineData(SchnackError.WhisperModelMissing, "Whisper-Modell fehlt")]
+    [InlineData(SchnackError.ApiKeyInvalid, "API-Key ungültig")]
+    [InlineData(SchnackError.RateLimit, "Rate Limit")]
+    public async Task Pipeline_SchnackException_ShowsSpecificBalloon(SchnackError code, string expectedTitle)
+    {
+        _recording.Setup(r => r.StopRecording()).Returns(@"C:\nonexistent\rec.wav");
+        _transcription.Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new SchnackException(code, "test"));
+        var sut = CreateSut();
+
+        await sut.ToggleRecordingAsync(123);
+        await sut.ToggleRecordingAsync(123);
+
+        _tray.Verify(t => t.ShowBalloonTip(expectedTitle, It.IsAny<string>()), Times.Once);
+        _tray.Verify(t => t.ShowBalloonTip("Fehler", It.IsAny<string>()), Times.Never);
+        Assert.Equal(RecordingState.Idle, sut.State);
+    }
+
+    [Fact]
+    public async Task Pipeline_UnknownException_ShowsGenericBalloon()
+    {
+        _recording.Setup(r => r.StopRecording()).Returns(@"C:\nonexistent\rec.wav");
+        _transcription.Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("something else"));
+        var sut = CreateSut();
+
+        await sut.ToggleRecordingAsync(123);
+        await sut.ToggleRecordingAsync(123);
+
+        _tray.Verify(t => t.ShowBalloonTip("Fehler", It.IsAny<string>()), Times.Once);
     }
 
     [Fact]

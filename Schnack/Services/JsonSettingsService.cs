@@ -13,6 +13,8 @@ public class JsonSettingsService : ISettingsService
         WriteIndented = true
     };
 
+    private const int CurrentSchema = 3;
+
     private readonly SemaphoreSlim _lock = new(1, 1);
     private readonly ILogger<JsonSettingsService> _logger;
 
@@ -43,7 +45,9 @@ public class JsonSettingsService : ISettingsService
             {
                 CreatedDefaultSettingsOnLastLoad = true;
                 _logger.LogInformation("Settings file not found, creating defaults at {Path}", path);
-                Settings = new AppSettings();
+                // Erstinstallation: Windows-Sprache vorbelegen; der Erststart-Dialog lässt sie ändern.
+                var systemLanguage = DetectSystemLanguage();
+                Settings = new AppSettings { UiLanguage = systemLanguage, DictationLanguage = systemLanguage };
                 await WriteAsync(ct);
                 return;
             }
@@ -51,19 +55,34 @@ public class JsonSettingsService : ISettingsService
             var json = await File.ReadAllTextAsync(path, ct);
             var loaded = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings();
 
+            // SettingsSchema hat den Default des aktuellen Schemas — bei fehlendem Feld im JSON
+            // wäre die Version sonst fälschlich aktuell. Daher direkt am Roh-JSON prüfen.
             var schema = !JsonHasSettingsSchemaProperty(json) ? 0 : loaded.SettingsSchema;
-            if (schema < 1)
-            {
-                loaded = loaded with { SettingsSchema = 1 };
-                _logger.LogInformation("Settings migrated to schema 1");
-            }
+
             if (schema < 2)
             {
-                // Schema 1→2: BackendProvider eingeführt; Bestandsnutzer hatten OpenAI-STT → openai Default
-                loaded = loaded with { SettingsSchema = 2, BackendProvider = Models.BackendProvider.OpenAi };
+                // Schema →2: BackendProvider eingeführt; Bestandsnutzer hatten OpenAI-STT
+                loaded = loaded with { BackendProvider = Models.BackendProvider.OpenAi };
+            }
+            if (schema < 3)
+            {
+                // Schema →3: Sprachen eingeführt, Modi von sprachgebunden auf sprachneutral umgestellt.
+                // Bestandsnutzer haben bisher immer deutsch diktiert und deutsche Oberfläche gesehen —
+                // beides bleibt, damit ein Update die App nicht unter ihnen umstellt.
+                loaded = loaded with
+                {
+                    UiLanguage = AppLanguage.De,
+                    DictationLanguage = AppLanguage.De,
+                    DefaultMode = loaded.DefaultMode == "de_to_en" ? "translate" : "correct"
+                };
+            }
+
+            if (schema < CurrentSchema)
+            {
+                loaded = loaded with { SettingsSchema = CurrentSchema };
                 Settings = loaded;
                 await WriteAsync(ct);
-                _logger.LogInformation("Settings migrated to schema 2");
+                _logger.LogInformation("Settings migrated from schema {Old} to {New}", schema, CurrentSchema);
             }
             else
                 Settings = loaded;
@@ -98,6 +117,13 @@ public class JsonSettingsService : ISettingsService
             _lock.Release();
         }
     }
+
+    // Virtual, damit Tests eine feste Sprache erzwingen können
+    protected virtual AppLanguage DetectSystemLanguage() =>
+        System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName
+            .Equals("de", StringComparison.OrdinalIgnoreCase)
+            ? AppLanguage.De
+            : AppLanguage.En;
 
     private static bool JsonHasSettingsSchemaProperty(string json)
     {

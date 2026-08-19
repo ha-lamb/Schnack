@@ -1,7 +1,7 @@
-using System.Net;
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Schnack.Localization;
 using Schnack.Models;
 
 namespace Schnack.Services;
@@ -22,7 +22,7 @@ public sealed class DictationOrchestrator : IDictationOrchestrator
     private CancellationTokenSource? _pipelineCts;
     private bool _disposed;
 
-    public DictationMode CurrentMode { get; set; } = DictationMode.DeCorrect;
+    public DictationMode CurrentMode { get; set; } = DictationMode.Correct;
 
     public RecordingState State => (RecordingState)_recordingState;
 
@@ -68,7 +68,9 @@ public sealed class DictationOrchestrator : IDictationOrchestrator
         {
             var tempDir = _settingsService.Settings.TempAudioPath
                 ?? Path.Combine(Path.GetTempPath(), "Schnack");
-            var wavPath = Path.Combine(tempDir, $"rec_{DateTime.UtcNow:yyyyMMdd_HHmmss}.wav");
+            // InvariantCulture: der Dateiname darf nicht von der eingestellten Kultur abhängen
+            var wavPath = Path.Combine(tempDir,
+                $"rec_{DateTime.UtcNow.ToString("yyyyMMdd_HHmmss", System.Globalization.CultureInfo.InvariantCulture)}.wav");
 
             _recordingService.StartRecording(wavPath);
             _trayService.UpdateState(RecordingState.Recording);
@@ -80,8 +82,7 @@ public sealed class DictationOrchestrator : IDictationOrchestrator
             Interlocked.Exchange(ref _recordingState, (int)RecordingState.Idle);
             _trayService.UpdateState(RecordingState.Idle);
             _floatingRecordUi.SetRecordingState(RecordingState.Idle);
-            _trayService.ShowBalloonTip("Mikrofon-Fehler",
-                "Aufnahme konnte nicht gestartet werden. Einstellungen prüfen.");
+            _trayService.ShowBalloonTip(Strings.Balloon_MicErrorTitle, Strings.Balloon_MicErrorStart);
         }
     }
 
@@ -131,7 +132,7 @@ public sealed class DictationOrchestrator : IDictationOrchestrator
 
             if (string.IsNullOrWhiteSpace(transcript))
             {
-                _trayService.ShowBalloonTip("Schnack", "Keine Sprache erkannt.");
+                _trayService.ShowBalloonTip(Strings.Balloon_AppTitle, Strings.Balloon_NoSpeech);
                 return;
             }
 
@@ -141,70 +142,33 @@ public sealed class DictationOrchestrator : IDictationOrchestrator
             if (_cachedTargetHwnd == 0)
             {
                 await Application.Current.Dispatcher.InvokeAsync(() => Clipboard.SetText(result.Text));
-                _trayService.ShowBalloonTip("Kein Zielfenster",
-                    "Text liegt in der Zwischenablage – bitte mit Strg+V einfügen.");
+                _trayService.ShowBalloonTip(Strings.Error_NoTargetWindowTitle, Strings.Error_NoTargetWindowClipboard);
                 return;
             }
             await _textInsertionService.InsertTextAsync(_cachedTargetHwnd, result.Text, ct);
 
             if (result.IsPossiblyTruncated)
             {
-                _trayService.ShowBalloonTip(
-                    "Hinweis",
-                    "Die Antwort könnte abgeschnitten sein. 'Max Tokens' in den Einstellungen erhoehen.");
+                _trayService.ShowBalloonTip(Strings.Balloon_HintTitle, Strings.Balloon_Truncated);
             }
         }
         catch (OperationCanceledException)
         {
             _logger.LogInformation("Pipeline cancelled");
         }
-        catch (HttpRequestException ex) when (ex.Message.StartsWith("OpenAI:", StringComparison.Ordinal))
+        catch (SchnackException ex)
         {
-            _trayService.ShowBalloonTip("OpenAI", "OpenAI-Anfrage abgelehnt oder API-Key ungültig.");
-        }
-        catch (HttpRequestException ex) when (
-            ex.StatusCode == HttpStatusCode.Unauthorized ||
-            ex.StatusCode == HttpStatusCode.Forbidden)
-        {
-            _trayService.ShowBalloonTip("API-Key ungültig", "API-Key ungültig oder abgelaufen.");
-        }
-        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests)
-        {
-            _trayService.ShowBalloonTip("Rate Limit", "Rate Limit erreicht – kurz warten.");
+            _logger.LogWarning("Pipeline error: {Code}", ex.Code);
+            ShowErrorBalloon(ex.Code);
         }
         catch (HttpRequestException)
         {
-            _trayService.ShowBalloonTip("Netzwerk", "Keine Verbindung zum API-Backend.");
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("Aufnahme konnte nicht", StringComparison.Ordinal))
-        {
-            _trayService.ShowBalloonTip("Mikrofon antwortet nicht",
-                "Mikrofon prüfen – Verbindung oder Treiber wurde unterbrochen.");
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("Kein Zielfenster", StringComparison.Ordinal))
-        {
-            _trayService.ShowBalloonTip("Kein Zielfenster",
-                "Zielfenster konnte nicht erkannt werden. Text liegt in der Zwischenablage – bitte mit Strg+V einfügen.");
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("OPENAI_API_KEY", StringComparison.Ordinal))
-        {
-            _trayService.ShowBalloonTip("OpenAI API-Key fehlt",
-                "OPENAI_API_KEY setzen oder OpenAI-Key in den Einstellungen speichern.");
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("ANTHROPIC_API_KEY", StringComparison.Ordinal))
-        {
-            _trayService.ShowBalloonTip("Anthropic API-Key fehlt",
-                "ANTHROPIC_API_KEY nicht gesetzt. Umgebungsvariable setzen und neu starten.");
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("nicht heruntergeladen", StringComparison.Ordinal))
-        {
-            _trayService.ShowBalloonTip("Whisper-Modell fehlt",
-                "Whisper-Modell in den Einstellungen herunterladen.");
+            _trayService.ShowBalloonTip(Strings.Error_NetworkTitle, Strings.Error_Network);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex.GetType().Name + ": Pipeline error");
-            _trayService.ShowBalloonTip("Fehler", "Verarbeitung fehlgeschlagen.");
+            _trayService.ShowBalloonTip(Strings.Error_GenericTitle, Strings.Error_Generic);
         }
         finally
         {
@@ -218,6 +182,23 @@ public sealed class DictationOrchestrator : IDictationOrchestrator
             _trayService.UpdateState(RecordingState.Idle);
             _floatingRecordUi.SetRecordingState(RecordingState.Idle);
         }
+    }
+
+    private void ShowErrorBalloon(SchnackError code)
+    {
+        var (title, message) = code switch
+        {
+            SchnackError.MicrophoneStopTimeout => (Strings.Error_MicTimeoutTitle, Strings.Error_MicTimeout),
+            SchnackError.NoTargetWindow => (Strings.Error_NoTargetWindowTitle, Strings.Error_NoTargetWindow),
+            SchnackError.MissingOpenAiKey => (Strings.Error_MissingOpenAiKeyTitle, Strings.Error_MissingOpenAiKey),
+            SchnackError.MissingAnthropicKey => (Strings.Error_MissingAnthropicKeyTitle, Strings.Error_MissingAnthropicKey),
+            SchnackError.WhisperModelMissing => (Strings.Error_WhisperModelMissingTitle, Strings.Error_WhisperModelMissing),
+            SchnackError.ApiKeyInvalid => (Strings.Error_ApiKeyInvalidTitle, Strings.Error_ApiKeyInvalid),
+            SchnackError.RateLimit => (Strings.Error_RateLimitTitle, Strings.Error_RateLimit),
+            SchnackError.EmptyApiResponse => (Strings.Error_GenericTitle, Strings.Error_EmptyResponse),
+            _ => (Strings.Error_GenericTitle, Strings.Error_Generic)
+        };
+        _trayService.ShowBalloonTip(title, message);
     }
 
     public void Dispose()

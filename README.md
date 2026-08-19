@@ -1,6 +1,8 @@
 # Schnack – Voice-to-Text Tray-Tool
 
-Internes Windows-11-Tray-Tool für persönliche Nutzung. Nimmt gesprochenen deutschen Text per globalem Hotkey oder schwebendem Button auf, transkribiert ihn und fügt das Ergebnis — zurückhaltend korrigiert oder ins Englische übersetzt — automatisch ins zuvor aktive Textfeld ein.
+Internes Windows-11-Tray-Tool für persönliche Nutzung. Nimmt gesprochenen Text per globalem Hotkey oder schwebendem Button auf, transkribiert ihn und fügt das Ergebnis — zurückhaltend geglättet oder übersetzt — automatisch ins zuvor aktive Textfeld ein.
+
+**Zweisprachig:** Diktiert werden kann auf **Deutsch oder Englisch**, wahlweise mit Übersetzung in die jeweils andere Sprache. Die Oberfläche ist davon unabhängig auf Deutsch oder Englisch einstellbar; beim ersten Start wird sie abgefragt (vorbelegt aus der Windows-Sprache) und ist später jederzeit änderbar — der Wechsel wirkt sofort, ohne Neustart.
 
 **Zwei wählbare Backends** (Einstellungen → Backend):
 
@@ -91,31 +93,38 @@ Release bauen (für Maintainer): siehe [RELEASE.md](RELEASE.md).
 | Eintrag | Funktion |
 |---------|---------|
 | *Hinweis: Aufnahme über Hotkey oder schwebenden Button* | — |
-| Deutsch korrigieren | Modus `de_correct` |
-| Deutsch → Englisch | Modus `de_to_en` |
+| Deutsch / Englisch / Deutsch → Englisch / Englisch → Deutsch | Diktat-Modus wählen (Häkchen zeigt den aktiven) |
 | Einstellungen… | Einstellungs-Dialog |
 | Schwebender Aufnahme-Button | Button ein-/ausblenden (Häkchen) |
 | Über Schnack… | Version, Datum, Lizenz |
 | Auf Updates prüfen | Manueller Update-Check |
 | Beenden | Programm beenden |
 
-### Modi
+### Diktat-Modi
 
-| Modus | Beschreibung |
-|-------|-------------|
-| `de_correct` | Korrigiert Rechtschreibung, Zeichensetzung und offensichtliche Diktierfehler. Inhalt bleibt unverändert. |
-| `de_to_en` | Übersetzt in natürliches, klares Englisch. Bedeutung bleibt vollständig erhalten. |
+Vier Optionen, wählbar im Tray-Menü oder in den Einstellungen. **Geglättet wird immer** — Rechtschreibung, Zeichensetzung und offensichtliche Diktierfehler werden korrigiert, der Inhalt bleibt unverändert.
+
+| Option | Beschreibung |
+|--------|-------------|
+| Deutsch | Deutsch gesprochen → geglätteter deutscher Text |
+| Englisch | Englisch gesprochen → geglätteter englischer Text |
+| Deutsch → Englisch | Deutsch gesprochen → geglättet → ins Englische übersetzt |
+| Englisch → Deutsch | Englisch gesprochen → geglättet → ins Deutsche übersetzt |
+
+Die Auswahl wird gespeichert und gilt auch nach einem Neustart.
 
 ---
 
 ## Einstellungen
 
-Einstellungsdatei: `%APPDATA%\Schnack\settings.json` (Schema-Version 2, automatische Migration)
+Einstellungsdatei: `%APPDATA%\Schnack\settings.json` (Schema-Version 3, automatische Migration)
 
 | Feld | Standard | Beschreibung |
 |------|---------|-------------|
 | `backendProvider` | `openai` | Gewählter Stack: `openai` oder `claude` |
-| `defaultMode` | `de_correct` | Aktiver Modus beim Start |
+| `uiLanguage` | Windows-Sprache | Sprache der Oberfläche: `de` oder `en` |
+| `dictationLanguage` | Windows-Sprache | Gesprochene Sprache: `de` oder `en` |
+| `defaultMode` | `correct` | `correct` (nur glätten) oder `translate` (zusätzlich übersetzen) — zusammen mit `dictationLanguage` ergibt das die vier Diktat-Optionen |
 | `openAiTranscriptionModel` | `gpt-4o-mini-transcribe` | OpenAI-STT-Modell |
 | `openAiChatModel` | `gpt-4o-mini` | OpenAI-Chat-Modell (Textverarbeitung) |
 | `openAiChatMaxTokens` | `4096` | Maximale Ausgabelänge (OpenAI) |
@@ -139,6 +148,8 @@ Logs: `%APPDATA%\Schnack\logs\schnack-<datum>.log` (7 Tage Aufbewahrung)
 
 - **Nur Text-Clipboard:** Beim Clipboard-Einfügeweg wird nur vorheriger Text gesichert/wiederhergestellt; Bilder und Dateien im Clipboard gehen verloren (`restoreClipboard = true`).
 - **Erststart-Download (Claude-Backend):** Das Whisper-Modell muss einmalig heruntergeladen werden (Einstellungen → Herunterladen).
+- **Nur Deutsch und Englisch:** Weitere Sprachen und automatische Spracherkennung des Diktats sind nicht vorgesehen.
+- **Sprachauswahl nicht im Installer:** Die Setup-EXE läuft ohne Optionsdialoge durch (Preis für die UAC-freie Installation); die Sprache wird beim ersten Start abgefragt.
 - **Kein Auto-Stop:** Keine Voice Activity Detection — Aufnahme wird manuell gestoppt.
 - **Single-Instance:** Nur eine Instanz gleichzeitig.
 - **SetForegroundWindow:** In seltenen Fällen kann das automatische Fokussieren des Zielfensters fehlschlagen. Der Text liegt dann in der Zwischenablage und wird per Tray-Hinweis zum manuellen Einfügen (`Strg+V`) angeboten.

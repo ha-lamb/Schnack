@@ -90,6 +90,11 @@ public sealed class FloatingRecordUiService : IFloatingRecordUi
         _ = _settingsService.SaveAsync();
     }
 
+    public void ApplyLanguage()
+    {
+        Application.Current.Dispatcher.Invoke(() => _window?.ApplyLocalization());
+    }
+
     public void SetRecordingState(RecordingState state)
     {
         Application.Current.Dispatcher.Invoke(() =>

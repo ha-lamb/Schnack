@@ -30,14 +30,14 @@ public class JsonSettingsServiceTests : IDisposable
 
         await service.LoadAsync();
 
-        Assert.Equal("de_correct", service.Settings.DefaultMode);
+        Assert.Equal("correct", service.Settings.DefaultMode);
         Assert.Equal("gpt-4o-mini-transcribe", service.Settings.OpenAiTranscriptionModel);
         Assert.Equal("claude-haiku-4-5", service.Settings.ClaudeModel);
         Assert.Equal(4096, service.Settings.ClaudeMaxTokens);
         Assert.True(service.Settings.RestoreClipboard);
         Assert.True(service.Settings.PreferClipboardFreeInsertion);
         Assert.False(service.Settings.DebugLogging);
-        Assert.Equal(2, service.Settings.SettingsSchema);
+        Assert.Equal(3, service.Settings.SettingsSchema);
         Assert.True(service.CreatedDefaultSettingsOnLastLoad);
     }
 
@@ -52,11 +52,56 @@ public class JsonSettingsServiceTests : IDisposable
             Mock.Of<ILogger<JsonSettingsService>>(), _tempDir);
         await service.LoadAsync();
 
-        Assert.Equal(2, service.Settings.SettingsSchema);
+        Assert.Equal(3, service.Settings.SettingsSchema);
         Assert.Equal(BackendProvider.OpenAi, service.Settings.BackendProvider);
 
         var json = await File.ReadAllTextAsync(path);
         Assert.Contains("settingsSchema", json, StringComparison.Ordinal);
+    }
+
+    // Schema 2→3: Sprachen kommen dazu, Modi verlieren ihr Sprachpräfix.
+    [Theory]
+    [InlineData("de_correct", "correct")]
+    [InlineData("de_to_en", "translate")]
+    public async Task LoadAsync_Schema2_MigratesModeAndLanguages(string oldMode, string expectedMode)
+    {
+        var path = Path.Combine(_tempDir, "settings.json");
+        await File.WriteAllTextAsync(path,
+            $$"""{"settingsSchema":2,"backendProvider":"claude","defaultMode":"{{oldMode}}","hotkey":"Ctrl+Alt+S"}""");
+
+        var service = new TestableJsonSettingsService(
+            Mock.Of<ILogger<JsonSettingsService>>(), _tempDir);
+        await service.LoadAsync();
+
+        Assert.Equal(3, service.Settings.SettingsSchema);
+        Assert.Equal(expectedMode, service.Settings.DefaultMode);
+        // Bestandsnutzer bleiben auf Deutsch — ein Update darf die App nicht umstellen
+        Assert.Equal(AppLanguage.De, service.Settings.UiLanguage);
+        Assert.Equal(AppLanguage.De, service.Settings.DictationLanguage);
+        // Backend darf die Migration nicht überschreiben
+        Assert.Equal(BackendProvider.Claude, service.Settings.BackendProvider);
+
+        // Migration muss zurückgeschrieben werden
+        var reloaded = new TestableJsonSettingsService(
+            Mock.Of<ILogger<JsonSettingsService>>(), _tempDir);
+        await reloaded.LoadAsync();
+        Assert.Equal(expectedMode, reloaded.Settings.DefaultMode);
+    }
+
+    [Fact]
+    public async Task LoadAsync_CurrentSchema_LeavesSettingsUntouched()
+    {
+        var path = Path.Combine(_tempDir, "settings.json");
+        await File.WriteAllTextAsync(path,
+            """{"settingsSchema":3,"uiLanguage":"en","dictationLanguage":"en","defaultMode":"translate"}""");
+
+        var service = new TestableJsonSettingsService(
+            Mock.Of<ILogger<JsonSettingsService>>(), _tempDir);
+        await service.LoadAsync();
+
+        Assert.Equal(AppLanguage.En, service.Settings.UiLanguage);
+        Assert.Equal(AppLanguage.En, service.Settings.DictationLanguage);
+        Assert.Equal("translate", service.Settings.DefaultMode);
     }
 
     [Fact]

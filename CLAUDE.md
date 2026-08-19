@@ -4,7 +4,14 @@
 
 ## Was ist Schnack?
 
-Internes Windows-11-Tray-Tool (.NET 10 / WPF) für persönliche Nutzung. Nimmt deutsche Sprache via Mikrofon auf, transkribiert sie und fügt den korrigierten oder ins Englische übersetzten Text in das zuvor aktive Windows-Textfeld ein.
+Internes Windows-11-Tray-Tool (.NET 10 / WPF) für persönliche Nutzung. Nimmt gesprochene Sprache via Mikrofon auf, transkribiert sie und fügt den geglätteten oder übersetzten Text in das zuvor aktive Windows-Textfeld ein.
+
+**Zweisprachig (Deutsch/Englisch).** Zwei voneinander unabhängige Dinge:
+
+- **Oberflächensprache** (`UiLanguage`) — Tray, Dialoge, Meldungen. Wechsel wirkt sofort.
+- **Diktat-Modus** — eine von vier Optionen: `Deutsch`, `Englisch`, `Deutsch → Englisch`, `Englisch → Deutsch`. Geglättet wird immer; die Pfeil-Varianten übersetzen zusätzlich.
+
+Die vier Optionen sind intern die Kombinationen aus `DictationLanguage` × `DictationMode` (`Correct`/`Translate`), gebündelt in `Models/DictationChoice.cs` — **die einzige Quelle** für Tray-Menü und Einstellungen, damit beide nicht auseinanderlaufen. Jede Kombination hat einen eigenen Prompt in `DictationPrompts`. Die Auswahl wird sofort persistiert (Tray wie Dialog), weil die Services die Diktiersprache pro Lauf aus den Settings lesen.
 
 **Zwei Backend-Stacks** (Nutzer wählt einen in den Einstellungen — Entweder-oder, kein Mischbetrieb):
 
@@ -116,8 +123,23 @@ API-Keys können alternativ über die Settings-UI hinterlegt werden — werden d
 ### Settings & Schema-Migration
 
 - `AppSettings` ist ein `record` mit `with`-Updates. Persistenz: `%APPDATA%\Schnack\settings.json`.
-- **Schema-Versionierung** über `SettingsSchema` (aktuell 2: `BackendProvider`, `OpenAiChatModel`, `WhisperModel`, `WhisperUseGpu`). Bei `LoadAsync`: veraltetes Schema → Migration, Datei zurückschreiben, loggen.
-- Bei neuen Feldern: Default in `AppSettings` setzen UND Migrationsschritt im `JsonSettingsService` ergänzen.
+- **Schema-Versionierung** über `SettingsSchema` (aktuell **3**). Schema 2 brachte `BackendProvider`, Schema 3 die Sprachen (`UiLanguage`, `DictationLanguage`) und sprachneutrale Modi (`de_correct`/`de_to_en` → `correct`/`translate`).
+- Die Migration ist eine Kaskade aus `if (schema < N)`-Blöcken; **zurückgeschrieben wird einmal am Ende**, wenn `schema < CurrentSchema`. Bei neuen Feldern: Default in `AppSettings` setzen, `CurrentSchema` erhöhen, Block ergänzen, Test in `JsonSettingsServiceTests` nachziehen.
+- Bestandsnutzer bleiben bei der Migration bewusst auf Deutsch; nur Neuinstallationen übernehmen die Windows-Sprache.
+
+### Lokalisierung
+
+- Texte liegen in `Localization/Strings.resx` (Deutsch, neutral) und `Strings.en.resx`. `NeutralResourcesLanguage=de` in der csproj; **`SatelliteResourceLanguages` nicht setzen**, sonst fällt Englisch aus dem Publish und damit aus dem Velopack-Paket.
+- Zugriff über die handgeschriebene Klasse `Localization/Strings.cs` (eine Property je Schlüssel). Sie ist bewusst nicht generiert — die MSBuild-Generierung kollidiert mit WPFs Markup-Kompilierung.
+- **Neuer Text heißt: Eintrag in beide `.resx` UND eine Zeile in `Strings.cs`.** `LocalizationTests` schlägt sonst fehl.
+- XAML bindet per `{x:Static loc:Strings.Key}`. Das genügt für `SettingsWindow`/`AboutWindow`, weil sie transient sind und pro Öffnen neu entstehen.
+- **Ausnahmen, die den Sprachwechsel nicht automatisch mitbekommen:** Das Tray-Menü schreibt seine Header beim Erzeugen fest (`ITrayService.RebuildMenu()`), und `FloatingRecordWindow` wird zwischengespeichert (`IFloatingRecordUi.ApplyLanguage()`). Beide hängen am `ILocalizationService.LanguageChanged`-Event, verdrahtet in `App.OnLanguageChanged`.
+- **Logs bleiben englisch** und werden nie lokalisiert.
+
+### Fehlerbehandlung
+
+- Fehler mit eigener Nutzermeldung werden als `SchnackException` mit `SchnackError`-Code geworfen (`Models/SchnackError.cs`); der `DictationOrchestrator` übersetzt den Code in einen Balloon.
+- **Niemals** Fehler über Exception-Texte zuordnen — das brach bei der Übersetzung still. Exception-Messages sind englisch und rein für Logs.
 
 ## Codestil
 
@@ -146,6 +168,7 @@ C:\Dropbox\Cowork\Schnack\
 │  ├─ Services/
 │  │  ├─ Internal/              HttpRetry, ApiErrorLog, IUpdateChecker/VelopackUpdateChecker
 │  │  ├─ IDictationOrchestrator / DictationOrchestrator   State-Machine + Pipeline
+│  │  ├─ ILocalizationService / LocalizationService       Sprachwechsel zur Laufzeit
 │  │  ├─ ITrayService / TrayService
 │  │  ├─ IRecordingService / NAudioRecordingService
 │  │  ├─ ITranscriptionService  → OpenAiTranscriptionService | WhisperLocalTranscriptionService
@@ -162,7 +185,10 @@ C:\Dropbox\Cowork\Schnack\
 │  ├─ ViewModels/SettingsViewModel.cs   Dirty-Tracking
 │  ├─ Views/                    SettingsWindow, AboutWindow, FirstRunWindow, FloatingRecordWindow
 │  ├─ Commands/RelayCommand.cs
-│  ├─ Models/                   AppSettings, BackendProvider, DictationMode, RecordingState
+│  ├─ Localization/             Strings.resx (de), Strings.en.resx, Strings.cs (Zugriff)
+│  ├─ Models/                   AppSettings, AppLanguage, BackendProvider, DictationMode,
+│  │                            DictationChoice (die vier Diktat-Optionen),
+│  │                            RecordingState, SchnackError/SchnackException
 │  │  ├─ Claude/                Anthropic Request/Response-DTOs
 │  │  └─ OpenAi/                OpenAI Request/Response-DTOs
 │  ├─ Interop/Win32.cs          P/Invoke gebündelt
@@ -223,7 +249,8 @@ Laufzeit-Pfade (NICHT im Repo):
 
 - Hybrid-Backend-Modi (z.B. OpenAI-STT + Claude-Postprocessing). Nutzer wählt einen kompletten Stack.
 - Streaming-STT, Voice Activity Detection, Auto-Stop bei Stille, Live-Vorschau.
-- Andere STT-Sprachen als Deutsch; weitere Modi außer `de_correct` und `de_to_en`.
+- Weitere Sprachen als Deutsch und Englisch; automatische Spracherkennung des Diktats.
+- Weitere Modi außer `Correct` und `Translate`.
 - Code-Signing. Multi-User. Multi-Channel-Releases (nur `win`).
 - Auto-Apply von Updates ohne Nutzer-Bestätigung; Background-Polling für Update-Checks (nur beim Start + manuell).
 - Private-Repo-Support für den Update-Check (würde DPAPI-Token in der App erfordern).

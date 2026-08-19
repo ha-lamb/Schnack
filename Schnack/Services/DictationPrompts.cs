@@ -1,3 +1,5 @@
+using Schnack.Models;
+
 namespace Schnack.Services;
 
 internal static class DictationPrompts
@@ -28,6 +30,32 @@ internal static class DictationPrompts
         {{TRANSCRIPT}}
         """;
 
+    internal const string EnCorrect = """
+        Correct the following dictated English text very conservatively.
+
+        Allowed:
+        - fix spelling
+        - add punctuation
+        - fix capitalisation
+        - repair obvious dictation errors
+        - slightly reduce filler words
+        - remove duplicated phrasings
+
+        Not allowed:
+        - change the content
+        - add new information
+        - remove information
+        - weaken or strengthen statements
+        - alter names, numbers, dates, URLs, e-mail addresses or technical terms
+        - heavily rephrase the style
+        - turn bullet points into prose, unless the user clearly dictated prose
+
+        Output only the final corrected text, without explanation, without Markdown, without quotation marks.
+
+        Text:
+        {{TRANSCRIPT}}
+        """;
+
     internal const string DeToEn = """
         Der folgende Text wurde auf Deutsch diktiert. Übersetze ihn in natürliches, klares Englisch.
 
@@ -47,6 +75,35 @@ internal static class DictationPrompts
         {{TRANSCRIPT}}
         """;
 
-    internal static string Build(string promptTemplate, string transcript) =>
-        promptTemplate.Replace("{{TRANSCRIPT}}", transcript);
+    internal const string EnToDe = """
+        The following text was dictated in English. Translate it into natural, clear German.
+
+        Important:
+        - preserve the meaning completely
+        - do not add information
+        - do not remove information
+        - keep names, numbers, dates, URLs, e-mail addresses and technical terms
+        - carefully correct obvious dictation errors
+        - lightly smooth filler words and duplicated phrasings
+        - phrase it professionally and naturally, but do not over-formulate
+        - no explanation, no Markdown, no quotation marks
+
+        Output only the final German text.
+
+        Text:
+        {{TRANSCRIPT}}
+        """;
+
+    /// <summary>Wählt den Prompt anhand Diktiersprache und Modus; Übersetzen zielt stets auf die andere Sprache.</summary>
+    internal static string Build(AppLanguage language, DictationMode mode, string transcript)
+    {
+        var template = (language, mode) switch
+        {
+            (AppLanguage.De, DictationMode.Correct) => DeCorrect,
+            (AppLanguage.De, DictationMode.Translate) => DeToEn,
+            (AppLanguage.En, DictationMode.Correct) => EnCorrect,
+            _ => EnToDe
+        };
+        return template.Replace("{{TRANSCRIPT}}", transcript);
+    }
 }

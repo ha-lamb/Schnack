@@ -2,13 +2,20 @@ namespace Schnack.Models;
 
 public record AppSettings
 {
-    /// <summary>2 = aktuelles Schema; 0/1 oder fehlend = ältere Datei (Migration in JsonSettingsService).</summary>
-    public int SettingsSchema { get; init; } = 2;
+    /// <summary>3 = aktuelles Schema; kleiner oder fehlend = ältere Datei (Migration in JsonSettingsService).</summary>
+    public int SettingsSchema { get; init; } = 3;
 
     /// <summary>Gewählter Backend-Stack: OpenAi (Cloud-STT + OpenAI-Chat) oder Claude (Whisper.net + Anthropic).</summary>
     public BackendProvider BackendProvider { get; init; } = BackendProvider.OpenAi;
 
-    public string DefaultMode { get; init; } = "de_correct";
+    /// <summary>Sprache der Oberfläche (Tray, Dialoge, Meldungen).</summary>
+    public AppLanguage UiLanguage { get; init; } = AppLanguage.De;
+
+    /// <summary>Sprache, in der diktiert wird. Steuert STT und die Übersetzungsrichtung.</summary>
+    public AppLanguage DictationLanguage { get; init; } = AppLanguage.De;
+
+    /// <summary>Aktiver Modus beim Start: "correct" oder "translate".</summary>
+    public string DefaultMode { get; init; } = "correct";
 
     /// <summary>OpenAI Speech-to-Text Modell (API audio/transcriptions).</summary>
     public string OpenAiTranscriptionModel { get; init; } = "gpt-4o-mini-transcribe";

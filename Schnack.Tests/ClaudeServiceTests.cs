@@ -47,7 +47,7 @@ public class ClaudeServiceTests
             """;
 
         var sut = BuildService(new FakeMessageHandler(OkResponse(responseJson)));
-        var result = await sut.ProcessAsync("test transkript", DictationMode.DeCorrect);
+        var result = await sut.ProcessAsync("test transkript", DictationMode.Correct);
 
         Assert.Equal("Korrigierter Text.", result.Text);
         Assert.False(result.IsPossiblyTruncated);
@@ -69,7 +69,7 @@ public class ClaudeServiceTests
             """;
 
         var sut = BuildService(new FakeMessageHandler(OkResponse(responseJson)));
-        var result = await sut.ProcessAsync("test", DictationMode.DeToEn);
+        var result = await sut.ProcessAsync("test", DictationMode.Translate);
 
         Assert.Equal("Teil eins Teil zwei.", result.Text);
     }
@@ -89,7 +89,7 @@ public class ClaudeServiceTests
             """;
 
         var sut = BuildService(new FakeMessageHandler(OkResponse(responseJson)));
-        var result = await sut.ProcessAsync("test", DictationMode.DeCorrect);
+        var result = await sut.ProcessAsync("test", DictationMode.Correct);
 
         Assert.Equal("Abgeschnittener Text", result.Text);
         Assert.True(result.IsPossiblyTruncated);
@@ -112,34 +112,37 @@ public class ClaudeServiceTests
             OkResponse(okJson));
 
         var sut = BuildService(handler);
-        var result = await sut.ProcessAsync("test", DictationMode.DeCorrect);
+        var result = await sut.ProcessAsync("test", DictationMode.Correct);
 
         Assert.Equal("Nach Retry", result.Text);
         Assert.Equal(2, handler.SendCount);
     }
 
     [Fact]
-    public async Task ProcessAsync_UnauthorizedResponse_ThrowsHttpRequestException()
+    public async Task ProcessAsync_UnauthorizedResponse_ThrowsApiKeyInvalid()
     {
         var sut = BuildService(new FakeMessageHandler(new HttpResponseMessage(HttpStatusCode.Unauthorized)));
-        await Assert.ThrowsAsync<HttpRequestException>(
-            () => sut.ProcessAsync("test", DictationMode.DeCorrect));
+        var ex = await Assert.ThrowsAsync<SchnackException>(
+            () => sut.ProcessAsync("test", DictationMode.Correct));
+        Assert.Equal(SchnackError.ApiKeyInvalid, ex.Code);
     }
 
     [Fact]
-    public async Task ProcessAsync_MissingApiKey_ThrowsInvalidOperationException()
+    public async Task ProcessAsync_MissingApiKey_ThrowsMissingAnthropicKey()
     {
         var sut = BuildService(new FakeMessageHandler(OkResponse("{}")), apiKey: null);
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => sut.ProcessAsync("test", DictationMode.DeCorrect));
+        var ex = await Assert.ThrowsAsync<SchnackException>(
+            () => sut.ProcessAsync("test", DictationMode.Correct));
+        Assert.Equal(SchnackError.MissingAnthropicKey, ex.Code);
     }
 
     [Fact]
-    public async Task ProcessAsync_TooManyRequestsResponse_ThrowsHttpRequestException()
+    public async Task ProcessAsync_TooManyRequestsResponse_ThrowsRateLimit()
     {
         var sut = BuildService(new FakeMessageHandler(new HttpResponseMessage(HttpStatusCode.TooManyRequests)));
-        await Assert.ThrowsAsync<HttpRequestException>(
-            () => sut.ProcessAsync("test", DictationMode.DeCorrect));
+        var ex = await Assert.ThrowsAsync<SchnackException>(
+            () => sut.ProcessAsync("test", DictationMode.Correct));
+        Assert.Equal(SchnackError.RateLimit, ex.Code);
     }
 
     private static HttpResponseMessage OkResponse(string json) => new(HttpStatusCode.OK)

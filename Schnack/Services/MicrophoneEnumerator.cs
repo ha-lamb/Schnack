@@ -13,7 +13,9 @@ public static class MicrophoneEnumerator
         for (int i = 0; i < WaveIn.DeviceCount; i++)
         {
             var cap = WaveIn.GetCapabilities(i);
-            list.Add((i, string.IsNullOrWhiteSpace(cap.ProductName) ? $"Gerät {i}" : cap.ProductName));
+            list.Add((i, string.IsNullOrWhiteSpace(cap.ProductName)
+                ? Localization.Strings.Format(nameof(Localization.Strings.Settings_MicFallback), i)
+                : cap.ProductName));
         }
 
         return list;

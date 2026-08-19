@@ -70,21 +70,23 @@ public class OpenAiTranscriptionServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task TranscribeAsync_UnauthorizedResponse_ThrowsHttpRequestException()
+    public async Task TranscribeAsync_UnauthorizedResponse_ThrowsApiKeyInvalid()
     {
         var sut = BuildService(new FakeMessageHandler(new HttpResponseMessage(HttpStatusCode.Unauthorized)));
 
-        await Assert.ThrowsAsync<HttpRequestException>(
+        var ex = await Assert.ThrowsAsync<SchnackException>(
             () => sut.TranscribeAsync(_tempWavPath));
+        Assert.Equal(SchnackError.ApiKeyInvalid, ex.Code);
     }
 
     [Fact]
-    public async Task TranscribeAsync_MissingApiKey_ThrowsInvalidOperationException()
+    public async Task TranscribeAsync_MissingApiKey_ThrowsMissingOpenAiKey()
     {
         var sut = BuildService(new FakeMessageHandler(OkResponse("{}")), apiKey: null);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        var ex = await Assert.ThrowsAsync<SchnackException>(
             () => sut.TranscribeAsync(_tempWavPath));
+        Assert.Equal(SchnackError.MissingOpenAiKey, ex.Code);
     }
 
     [Fact]

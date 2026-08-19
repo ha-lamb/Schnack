@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Schnack.Localization;
 using Schnack.Services.Internal;
 using Velopack;
 
@@ -48,13 +49,12 @@ public sealed class VelopackUpdateService : IUpdateService
                 var version = info.TargetFullRelease.Version.ToString();
                 _logger.LogInformation("Update available: {Version}", version);
                 UpdateAvailable?.Invoke(this, new UpdateAvailableEventArgs { NewVersion = version });
-                _trayService.ShowBalloonTip("Update verfügbar",
-                    $"Update auf v{version} verfügbar – im Tray-Menü installieren.");
+                _trayService.ShowBalloonTip(Strings.Update_AvailableTitle,
+                    Strings.Format(nameof(Strings.Update_AvailableText), version));
             }
             else if (notifyOnNoUpdateOrError)
             {
-                _trayService.ShowBalloonTip("Schnack ist aktuell",
-                    "Schnack ist auf dem neuesten Stand.");
+                _trayService.ShowBalloonTip(Strings.Update_UpToDateTitle, Strings.Update_UpToDateText);
             }
             else
             {
@@ -66,8 +66,7 @@ public sealed class VelopackUpdateService : IUpdateService
         {
             _logger.LogWarning("Update check failed: {Type}", ex.GetType().Name);
             if (notifyOnNoUpdateOrError)
-                _trayService.ShowBalloonTip("Update-Check fehlgeschlagen",
-                    "Keine Verbindung zu GitHub.");
+                _trayService.ShowBalloonTip(Strings.Update_CheckFailedTitle, Strings.Update_CheckFailedText);
         }
     }
 
@@ -80,8 +79,8 @@ public sealed class VelopackUpdateService : IUpdateService
         }
 
         var version = _pendingUpdate.TargetFullRelease.Version.ToString();
-        _trayService.ShowBalloonTip("Update wird heruntergeladen…",
-            $"Update v{version} wird heruntergeladen.");
+        _trayService.ShowBalloonTip(Strings.Update_DownloadingTitle,
+            Strings.Format(nameof(Strings.Update_DownloadingText), version));
         _logger.LogInformation("Downloading update: {Version}", version);
 
         try
@@ -96,8 +95,7 @@ public sealed class VelopackUpdateService : IUpdateService
         catch (Exception ex)
         {
             _logger.LogError("Update apply failed: {Type}", ex.GetType().Name);
-            _trayService.ShowBalloonTip("Update-Installation fehlgeschlagen",
-                "Details siehe Log.");
+            _trayService.ShowBalloonTip(Strings.Update_FailedTitle, Strings.Update_FailedText);
         }
     }
 }

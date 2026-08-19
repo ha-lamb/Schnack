@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using Schnack.Commands;
+using Schnack.Localization;
 using Schnack.Models;
 using Schnack.Services;
 
@@ -16,6 +17,21 @@ public sealed class MicrophoneOption
     public override string ToString() => Name;
 }
 
+/// <summary>Auswahleintrag für eine der vier Diktat-Optionen.</summary>
+public sealed class DictationOption
+{
+    public DictationChoice Value { get; init; }
+    public string Display { get; init; } = "";
+    public override string ToString() => Display;
+}
+
+public sealed class LanguageOption
+{
+    public AppLanguage Value { get; init; }
+    public string Display { get; init; } = "";
+    public override string ToString() => Display;
+}
+
 public class SettingsViewModel : INotifyPropertyChanged
 {
     private readonly ISettingsService _settingsService;
@@ -24,13 +40,13 @@ public class SettingsViewModel : INotifyPropertyChanged
 
     // Baseline für Dirty-Tracking
     private readonly BackendProvider _baseBackendProvider;
-    private readonly string _baseSelectedMode;
+    private readonly AppLanguage _baseUiLanguage;
+    private readonly DictationChoice _baseDictation;
     private readonly string _baseOpenAiTranscriptionModel;
     private readonly string _baseOpenAiChatModel;
     private readonly string _baseClaudeModel;
     private readonly int _baseClaudeMaxTokens;
     private readonly string _baseWhisperModel;
-    private readonly bool _baseWhisperUseGpu;
     private readonly string _baseHotkey;
     private readonly bool _baseRestoreClipboard;
     private readonly bool _basePreferClipboardFreeInsertion;
@@ -38,13 +54,13 @@ public class SettingsViewModel : INotifyPropertyChanged
     private readonly int? _baseMicrophoneDeviceId;
 
     private BackendProvider _backendProvider;
-    private string _selectedMode;
+    private LanguageOption _uiLanguage;
+    private DictationOption _selectedDictation;
     private string _openAiTranscriptionModel;
     private string _openAiChatModel;
     private string _claudeModel;
     private int _claudeMaxTokens;
     private string _whisperModel;
-    private bool _whisperUseGpu;
     private string _hotkey;
     private bool _restoreClipboard;
     private bool _preferClipboardFreeInsertion;
@@ -66,15 +82,25 @@ public class SettingsViewModel : INotifyPropertyChanged
         _secretService = secretService;
         _downloadService = downloadService;
 
+        LanguageOptions =
+        [
+            new LanguageOption { Value = AppLanguage.De, Display = Strings.Language_German },
+            new LanguageOption { Value = AppLanguage.En, Display = Strings.Language_English }
+        ];
+        DictationOptions = DictationChoice.All
+            .Select(c => new DictationOption { Value = c, Display = c.DisplayName })
+            .ToArray();
+
         var s = settingsService.Settings;
         _backendProvider = s.BackendProvider;
-        _selectedMode = s.DefaultMode;
+        _uiLanguage = LanguageOptions.First(l => l.Value == s.UiLanguage);
+        var currentChoice = DictationChoice.FromSettings(s);
+        _selectedDictation = DictationOptions.First(o => o.Value == currentChoice);
         _openAiTranscriptionModel = s.OpenAiTranscriptionModel;
         _openAiChatModel = s.OpenAiChatModel;
         _claudeModel = s.ClaudeModel;
         _claudeMaxTokens = s.ClaudeMaxTokens;
         _whisperModel = s.WhisperModel;
-        _whisperUseGpu = s.WhisperUseGpu;
         _hotkey = s.Hotkey;
         _restoreClipboard = s.RestoreClipboard;
         _preferClipboardFreeInsertion = s.PreferClipboardFreeInsertion;
@@ -82,13 +108,13 @@ public class SettingsViewModel : INotifyPropertyChanged
 
         // Baseline festhalten
         _baseBackendProvider = _backendProvider;
-        _baseSelectedMode = _selectedMode;
+        _baseUiLanguage = s.UiLanguage;
+        _baseDictation = currentChoice;
         _baseOpenAiTranscriptionModel = _openAiTranscriptionModel;
         _baseOpenAiChatModel = _openAiChatModel;
         _baseClaudeModel = _claudeModel;
         _baseClaudeMaxTokens = _claudeMaxTokens;
         _baseWhisperModel = _whisperModel;
-        _baseWhisperUseGpu = _whisperUseGpu;
         _baseHotkey = _hotkey;
         _baseRestoreClipboard = _restoreClipboard;
         _basePreferClipboardFreeInsertion = _preferClipboardFreeInsertion;
@@ -97,7 +123,7 @@ public class SettingsViewModel : INotifyPropertyChanged
 
         MicrophoneOptions = new ObservableCollection<MicrophoneOption>
         {
-            new() { DeviceIndex = null, Name = "Standard (System)" }
+            new() { DeviceIndex = null, Name = Strings.Settings_MicDefault }
         };
         foreach (var (index, name) in MicrophoneEnumerator.ListCaptureDevices())
             MicrophoneOptions.Add(new MicrophoneOption { DeviceIndex = index, Name = name });
@@ -115,20 +141,19 @@ public class SettingsViewModel : INotifyPropertyChanged
 
     public bool IsDirty =>
         _backendProvider != _baseBackendProvider ||
-        _selectedMode != _baseSelectedMode ||
+        _uiLanguage.Value != _baseUiLanguage ||
+        _selectedDictation.Value != _baseDictation ||
         _openAiTranscriptionModel != _baseOpenAiTranscriptionModel ||
         _openAiChatModel != _baseOpenAiChatModel ||
         _claudeModel != _baseClaudeModel ||
         _claudeMaxTokens != _baseClaudeMaxTokens ||
         _whisperModel != _baseWhisperModel ||
-        _whisperUseGpu != _baseWhisperUseGpu ||
         _hotkey != _baseHotkey ||
         _restoreClipboard != _baseRestoreClipboard ||
         _preferClipboardFreeInsertion != _basePreferClipboardFreeInsertion ||
         _debugLogging != _baseDebugLogging ||
         _selectedMicrophone?.DeviceIndex != _baseMicrophoneDeviceId;
 
-    // Backend-Provider
     public BackendProvider BackendProvider
     {
         get => _backendProvider;
@@ -154,18 +179,26 @@ public class SettingsViewModel : INotifyPropertyChanged
         set { if (value) BackendProvider = BackendProvider.Claude; }
     }
 
+    public LanguageOption[] LanguageOptions { get; }
+    public DictationOption[] DictationOptions { get; }
     public ObservableCollection<MicrophoneOption> MicrophoneOptions { get; }
+
+    public LanguageOption UiLanguage
+    {
+        get => _uiLanguage;
+        set { _uiLanguage = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); }
+    }
+
+    public DictationOption SelectedDictation
+    {
+        get => _selectedDictation;
+        set { _selectedDictation = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); }
+    }
 
     public MicrophoneOption? SelectedMicrophone
     {
         get => _selectedMicrophone;
         set { _selectedMicrophone = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); }
-    }
-
-    public string SelectedMode
-    {
-        get => _selectedMode;
-        set { _selectedMode = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); }
     }
 
     public string OpenAiTranscriptionModel
@@ -196,12 +229,6 @@ public class SettingsViewModel : INotifyPropertyChanged
     {
         get => _whisperModel;
         set { _whisperModel = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); UpdateWhisperDownloadStatus(); }
-    }
-
-    public bool WhisperUseGpu
-    {
-        get => _whisperUseGpu;
-        set { _whisperUseGpu = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); }
     }
 
     public string Hotkey
@@ -251,13 +278,14 @@ public class SettingsViewModel : INotifyPropertyChanged
         }
     }
 
-    public string AnthropicApiKeyStatus => _secretService.HasApiKey() ? "✓ gespeichert" : "✗ nicht hinterlegt";
+    public string AnthropicApiKeyStatus =>
+        _secretService.HasApiKey() ? Strings.Settings_KeyStored : Strings.Settings_KeyNotStored;
     public bool IsAnthropicApiKeyStored => _secretService.HasApiKey();
 
-    public string OpenAiApiKeyStatus => _secretService.HasOpenAiApiKey() ? "✓ gespeichert" : "✗ nicht hinterlegt";
+    public string OpenAiApiKeyStatus =>
+        _secretService.HasOpenAiApiKey() ? Strings.Settings_KeyStored : Strings.Settings_KeyNotStored;
     public bool IsOpenAiApiKeyStored => _secretService.HasOpenAiApiKey();
 
-    public string[] ModeOptions { get; } = ["de_correct", "de_to_en"];
     public string[] OpenAiSttModelOptions { get; } = ["gpt-4o-mini-transcribe", "gpt-4o-transcribe", "whisper-1"];
     public string[] WhisperModelOptions { get; } = ["large-v3-turbo", "medium", "base", "small", "tiny"];
 
@@ -271,13 +299,14 @@ public class SettingsViewModel : INotifyPropertyChanged
         var updated = _settingsService.Settings with
         {
             BackendProvider = _backendProvider,
-            DefaultMode = _selectedMode,
+            UiLanguage = _uiLanguage.Value,
+            DictationLanguage = _selectedDictation.Value.Language,
+            DefaultMode = _selectedDictation.Value.ModeValue,
             OpenAiTranscriptionModel = _openAiTranscriptionModel,
             OpenAiChatModel = _openAiChatModel,
             ClaudeModel = _claudeModel,
             ClaudeMaxTokens = _claudeMaxTokens,
             WhisperModel = _whisperModel,
-            WhisperUseGpu = _whisperUseGpu,
             Hotkey = _hotkey,
             RestoreClipboard = _restoreClipboard,
             PreferClipboardFreeInsertion = _preferClipboardFreeInsertion,
@@ -293,7 +322,7 @@ public class SettingsViewModel : INotifyPropertyChanged
     {
         IsDownloading = true;
         WhisperDownloadProgress = 0;
-        WhisperDownloadStatus = "Herunterladen…";
+        WhisperDownloadStatus = Strings.Settings_Downloading;
 
         var model = _whisperModel;
         _ = Task.Run(async () =>
@@ -303,14 +332,15 @@ public class SettingsViewModel : INotifyPropertyChanged
                 var progress = new Progress<double>(p =>
                 {
                     WhisperDownloadProgress = p * 100;
-                    WhisperDownloadStatus = $"Herunterladen… {p * 100:0}%";
+                    WhisperDownloadStatus = Strings.Format(
+                        nameof(Strings.Settings_DownloadingPercent), (p * 100).ToString("0"));
                 });
                 await _downloadService.DownloadModelAsync(model, progress);
-                WhisperDownloadStatus = "✓ Modell heruntergeladen";
+                WhisperDownloadStatus = Strings.Settings_ModelDownloaded;
             }
             catch (Exception)
             {
-                WhisperDownloadStatus = "Fehler beim Herunterladen";
+                WhisperDownloadStatus = Strings.Settings_DownloadFailed;
             }
             finally
             {
@@ -324,8 +354,8 @@ public class SettingsViewModel : INotifyPropertyChanged
     {
         if (_isDownloading) return;
         WhisperDownloadStatus = _downloadService.IsModelDownloaded(_whisperModel)
-            ? "✓ Modell vorhanden"
-            : "Nicht heruntergeladen";
+            ? Strings.Settings_ModelPresent
+            : Strings.Settings_ModelMissing;
     }
 
     private void SaveApiKey(string apiKey)

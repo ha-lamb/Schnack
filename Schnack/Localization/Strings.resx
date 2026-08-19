@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="Common_Save" xml:space="preserve"><value>Speichern</value></data>
+  <data name="Common_Cancel" xml:space="preserve"><value>Abbrechen</value></data>
+  <data name="Common_Close" xml:space="preserve"><value>Schließen</value></data>
+
+  <data name="Language_German" xml:space="preserve"><value>Deutsch</value></data>
+  <data name="Language_English" xml:space="preserve"><value>Englisch</value></data>
+
+  <data name="Mode_German" xml:space="preserve"><value>Deutsch</value></data>
+  <data name="Mode_English" xml:space="preserve"><value>Englisch</value></data>
+  <data name="Mode_GermanToEnglish" xml:space="preserve"><value>Deutsch → Englisch</value></data>
+  <data name="Mode_EnglishToGerman" xml:space="preserve"><value>Englisch → Deutsch</value></data>
+
+  <data name="Tray_Hint" xml:space="preserve"><value>Aufnahme über Hotkey ({0}) oder schwebenden Button</value></data>
+  <data name="Tray_Settings" xml:space="preserve"><value>Einstellungen…</value></data>
+  <data name="Tray_FloatingButton" xml:space="preserve"><value>Schwebender Aufnahme-Button</value></data>
+  <data name="Tray_About" xml:space="preserve"><value>Über Schnack…</value></data>
+  <data name="Tray_CheckUpdates" xml:space="preserve"><value>Auf Updates prüfen</value></data>
+  <data name="Tray_Exit" xml:space="preserve"><value>Beenden</value></data>
+  <data name="Tray_UpdateInstall" xml:space="preserve"><value>Update v{0} installieren</value></data>
+  <data name="Tray_TooltipIdle" xml:space="preserve"><value>Schnack – Bereit</value></data>
+  <data name="Tray_TooltipRecording" xml:space="preserve"><value>Schnack – Aufnahme läuft…</value></data>
+  <data name="Tray_TooltipProcessing" xml:space="preserve"><value>Schnack – Verarbeite…</value></data>
+
+  <data name="Balloon_AppTitle" xml:space="preserve"><value>Schnack</value></data>
+  <data name="Balloon_NoSpeech" xml:space="preserve"><value>Keine Sprache erkannt.</value></data>
+  <data name="Balloon_HintTitle" xml:space="preserve"><value>Hinweis</value></data>
+  <data name="Balloon_Truncated" xml:space="preserve"><value>Die Antwort könnte abgeschnitten sein. „Max Tokens“ in den Einstellungen erhöhen.</value></data>
+  <data name="Balloon_MicErrorTitle" xml:space="preserve"><value>Mikrofon-Fehler</value></data>
+  <data name="Balloon_MicErrorStart" xml:space="preserve"><value>Aufnahme konnte nicht gestartet werden. Einstellungen prüfen.</value></data>
+  <data name="Balloon_AlreadyRunning" xml:space="preserve"><value>Schnack läuft bereits</value></data>
+
+  <data name="Error_MicTimeoutTitle" xml:space="preserve"><value>Mikrofon antwortet nicht</value></data>
+  <data name="Error_MicTimeout" xml:space="preserve"><value>Mikrofon prüfen – Verbindung oder Treiber wurde unterbrochen.</value></data>
+  <data name="Error_NoTargetWindowTitle" xml:space="preserve"><value>Kein Zielfenster</value></data>
+  <data name="Error_NoTargetWindow" xml:space="preserve"><value>Zielfenster konnte nicht erkannt werden. Text liegt in der Zwischenablage – bitte mit Strg+V einfügen.</value></data>
+  <data name="Error_NoTargetWindowClipboard" xml:space="preserve"><value>Text liegt in der Zwischenablage – bitte mit Strg+V einfügen.</value></data>
+  <data name="Error_MissingOpenAiKeyTitle" xml:space="preserve"><value>OpenAI API-Key fehlt</value></data>
+  <data name="Error_MissingOpenAiKey" xml:space="preserve"><value>OPENAI_API_KEY setzen oder OpenAI-Key in den Einstellungen speichern.</value></data>
+  <data name="Error_MissingAnthropicKeyTitle" xml:space="preserve"><value>Anthropic API-Key fehlt</value></data>
+  <data name="Error_MissingAnthropicKey" xml:space="preserve"><value>ANTHROPIC_API_KEY setzen oder Anthropic-Key in den Einstellungen speichern.</value></data>
+  <data name="Error_WhisperModelMissingTitle" xml:space="preserve"><value>Whisper-Modell fehlt</value></data>
+  <data name="Error_WhisperModelMissing" xml:space="preserve"><value>Whisper-Modell in den Einstellungen herunterladen.</value></data>
+  <data name="Error_ApiKeyInvalidTitle" xml:space="preserve"><value>API-Key ungültig</value></data>
+  <data name="Error_ApiKeyInvalid" xml:space="preserve"><value>API-Key ungültig oder abgelaufen.</value></data>
+  <data name="Error_RateLimitTitle" xml:space="preserve"><value>Rate Limit</value></data>
+  <data name="Error_RateLimit" xml:space="preserve"><value>Rate Limit erreicht – kurz warten.</value></data>
+  <data name="Error_NetworkTitle" xml:space="preserve"><value>Netzwerk</value></data>
+  <data name="Error_Network" xml:space="preserve"><value>Keine Verbindung zum API-Backend.</value></data>
+  <data name="Error_EmptyResponse" xml:space="preserve"><value>Leere Antwort vom API-Backend.</value></data>
+  <data name="Error_GenericTitle" xml:space="preserve"><value>Fehler</value></data>
+  <data name="Error_Generic" xml:space="preserve"><value>Verarbeitung fehlgeschlagen.</value></data>
+
+  <data name="Update_AvailableTitle" xml:space="preserve"><value>Update verfügbar</value></data>
+  <data name="Update_AvailableText" xml:space="preserve"><value>Update auf v{0} verfügbar – im Tray-Menü installieren.</value></data>
+  <data name="Update_UpToDateTitle" xml:space="preserve"><value>Schnack ist aktuell</value></data>
+  <data name="Update_UpToDateText" xml:space="preserve"><value>Schnack ist auf dem neuesten Stand.</value></data>
+  <data name="Update_CheckFailedTitle" xml:space="preserve"><value>Update-Check fehlgeschlagen</value></data>
+  <data name="Update_CheckFailedText" xml:space="preserve"><value>Keine Verbindung zu GitHub.</value></data>
+  <data name="Update_DownloadingTitle" xml:space="preserve"><value>Update wird heruntergeladen…</value></data>
+  <data name="Update_DownloadingText" xml:space="preserve"><value>Update v{0} wird heruntergeladen.</value></data>
+  <data name="Update_FailedTitle" xml:space="preserve"><value>Update-Installation fehlgeschlagen</value></data>
+  <data name="Update_FailedText" xml:space="preserve"><value>Details siehe Log.</value></data>
+  <data name="Update_RestartConfirmTitle" xml:space="preserve"><value>Schnack – Update installieren</value></data>
+  <data name="Update_RestartConfirm" xml:space="preserve"><value>Schnack startet jetzt neu — laufende Aufnahme oder Verarbeitung geht verloren. Fortfahren?</value></data>
+
+  <data name="Startup_DotNetRequiredTitle" xml:space="preserve"><value>Schnack – .NET 10 erforderlich</value></data>
+  <data name="Startup_DotNetRequired" xml:space="preserve"><value>Schnack benötigt .NET 10 oder neuer (gefunden: {0}).
+
+Jetzt herunterladen?</value></data>
+  <data name="Startup_HotkeyFailed" xml:space="preserve"><value>Hotkey „{0}“ konnte nicht registriert werden.</value></data>
+
+  <data name="Settings_Title" xml:space="preserve"><value>Schnack – Einstellungen</value></data>
+  <data name="Settings_Backend" xml:space="preserve"><value>Backend</value></data>
+  <data name="Settings_BackendOpenAi" xml:space="preserve"><value>OpenAI  (Cloud-Spracherkennung + OpenAI Chat)</value></data>
+  <data name="Settings_BackendClaude" xml:space="preserve"><value>Claude  (lokales Whisper + Anthropic Claude)</value></data>
+  <data name="Settings_OpenAiSection" xml:space="preserve"><value>OpenAI</value></data>
+  <data name="Settings_SttModel" xml:space="preserve"><value>Spracherkennungs-Modell:</value></data>
+  <data name="Settings_ChatModel" xml:space="preserve"><value>Chat-Modell:</value></data>
+  <data name="Settings_ClaudeSection" xml:space="preserve"><value>Claude (Anthropic)</value></data>
+  <data name="Settings_ClaudeModel" xml:space="preserve"><value>Claude-Modell:</value></data>
+  <data name="Settings_MaxTokens" xml:space="preserve"><value>Max Tokens:</value></data>
+  <data name="Settings_WhisperSection" xml:space="preserve"><value>Whisper (lokal)</value></data>
+  <data name="Settings_WhisperModel" xml:space="preserve"><value>Modell:</value></data>
+  <data name="Settings_WhisperStatus" xml:space="preserve"><value>Modell-Status:</value></data>
+  <data name="Settings_Download" xml:space="preserve"><value>Herunterladen</value></data>
+  <data name="Settings_GeneralSection" xml:space="preserve"><value>Allgemein</value></data>
+  <data name="Settings_UiLanguage" xml:space="preserve"><value>Oberflächensprache:</value></data>
+  <data name="Settings_DefaultMode" xml:space="preserve"><value>Diktat-Modus:</value></data>
+  <data name="Settings_Hotkey" xml:space="preserve"><value>Hotkey:</value></data>
+  <data name="Settings_Microphone" xml:space="preserve"><value>Mikrofon:</value></data>
+  <data name="Settings_RestoreClipboard" xml:space="preserve"><value>Clipboard sichern:</value></data>
+  <data name="Settings_ClipboardFree" xml:space="preserve"><value>Einfügen ohne Clipboard:</value></data>
+  <data name="Settings_ClipboardFreeOption" xml:space="preserve"><value>Unicode-Tastatur (empfohlen)</value></data>
+  <data name="Settings_ClipboardFreeHint" xml:space="preserve"><value>Aus: per Zwischenablage + Strg+V.</value></data>
+  <data name="Settings_DebugLogging" xml:space="preserve"><value>Debug-Logging:</value></data>
+  <data name="Settings_DebugLoggingOption" xml:space="preserve"><value>Ausführliches Log (keine Transkripte)</value></data>
+  <data name="Settings_DebugLoggingHint" xml:space="preserve"><value>Alternativ: SCHNACK_DEBUG=1 als Umgebungsvariable.</value></data>
+  <data name="Settings_ApiKeysSection" xml:space="preserve"><value>API-Keys</value></data>
+  <data name="Settings_AnthropicKey" xml:space="preserve"><value>Anthropic (Claude):</value></data>
+  <data name="Settings_OpenAiKey" xml:space="preserve"><value>OpenAI (Spracherkennung/Chat):</value></data>
+  <data name="Settings_KeyHint" xml:space="preserve"><value>Keys werden DPAPI-verschlüsselt gespeichert. Alternativ: ANTHROPIC_API_KEY / OPENAI_API_KEY als Umgebungsvariablen.</value></data>
+  <data name="Settings_KeyStored" xml:space="preserve"><value>✓ gespeichert</value></data>
+  <data name="Settings_KeyNotStored" xml:space="preserve"><value>✗ nicht hinterlegt</value></data>
+  <data name="Settings_MicDefault" xml:space="preserve"><value>Standard (System)</value></data>
+  <data name="Settings_MicFallback" xml:space="preserve"><value>Gerät {0}</value></data>
+  <data name="Settings_ModelPresent" xml:space="preserve"><value>✓ Modell vorhanden</value></data>
+  <data name="Settings_ModelMissing" xml:space="preserve"><value>Nicht heruntergeladen</value></data>
+  <data name="Settings_ModelDownloaded" xml:space="preserve"><value>✓ Modell heruntergeladen</value></data>
+  <data name="Settings_Downloading" xml:space="preserve"><value>Herunterladen…</value></data>
+  <data name="Settings_DownloadingPercent" xml:space="preserve"><value>Herunterladen… {0}%</value></data>
+  <data name="Settings_DownloadFailed" xml:space="preserve"><value>Fehler beim Herunterladen</value></data>
+  <data name="Settings_DiscardChanges" xml:space="preserve"><value>Ungespeicherte Änderungen verwerfen?</value></data>
+
+  <data name="About_Title" xml:space="preserve"><value>Über Schnack</value></data>
+  <data name="About_Version" xml:space="preserve"><value>Version {0}</value></data>
+  <data name="About_Description" xml:space="preserve"><value>Diktieren, transkribieren, korrigieren oder übersetzen — Ergebnis an der Cursorposition einfügen. Backend wählbar: OpenAI (Cloud) oder Claude (lokales Whisper + Anthropic). Persönliches Tray-Tool für Windows 11.</value></data>
+
+  <data name="FirstRun_Title" xml:space="preserve"><value>Willkommen bei Schnack</value></data>
+  <data name="FirstRun_Intro" xml:space="preserve"><value>Schnack wurde eingerichtet. Bevor du diktierst:</value></data>
+  <data name="FirstRun_Language" xml:space="preserve"><value>Sprache der Oberfläche:</value></data>
+  <data name="FirstRun_Step1" xml:space="preserve"><value>1. In den Einstellungen ein Backend wählen: OpenAI (Standard, Cloud) oder Claude (lokales Whisper + Anthropic).</value></data>
+  <data name="FirstRun_Step2" xml:space="preserve"><value>2. Den passenden API-Key hinterlegen: OPENAI_API_KEY bzw. ANTHROPIC_API_KEY als Umgebungsvariable oder in den Einstellungen speichern.</value></data>
+  <data name="FirstRun_OpenSettings" xml:space="preserve"><value>Einstellungen öffnen…</value></data>
+</root>
