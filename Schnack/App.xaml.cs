@@ -64,11 +64,16 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        // Nur Typ + Stacktrace loggen, nie ex.Message (kann User-Daten enthalten — Logging-Verbote).
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
-            _logger?.LogError("UnhandledException: {Type}", args.ExceptionObject?.GetType().Name);
+        {
+            var ex = args.ExceptionObject as Exception;
+            _logger?.LogError("UnhandledException: {Type}\n{Stack}", ex?.GetType().Name, ex?.StackTrace);
+        };
         DispatcherUnhandledException += (_, args) =>
         {
-            _logger?.LogError("DispatcherUnhandledException: {Type}", args.Exception?.GetType().Name);
+            _logger?.LogError("DispatcherUnhandledException: {Type}\n{Stack}",
+                args.Exception?.GetType().Name, args.Exception?.StackTrace);
             args.Handled = true;
         };
 

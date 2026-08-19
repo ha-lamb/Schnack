@@ -21,6 +21,13 @@
             MouseLeftButtonDown="OnBorderMouseLeftButtonDown"
             MouseMove="OnBorderMouseMove"
             MouseLeftButtonUp="OnBorderMouseLeftButtonUp">
+        <!-- Rechtsklick öffnet ein Bestätigungs-Menü statt sofort auszublenden;
+             Klick außerhalb schließt das Menü ohne Aktion. -->
+        <Border.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="Schließen" Click="OnCloseMenuItemClick"/>
+            </ContextMenu>
+        </Border.ContextMenu>
         <Border.RenderTransform>
             <ScaleTransform x:Name="RootScale" />
         </Border.RenderTransform>

@@ -17,6 +17,7 @@ public partial class FloatingRecordWindow : Window
 
     public event EventHandler? ToggleRecording;
     public event EventHandler? DragCompleted;
+    public event EventHandler? HideRequested;
 
     public FloatingRecordWindow()
     {
@@ -124,6 +125,11 @@ public partial class FloatingRecordWindow : Window
             _pressScreen = now;
         }
     }
+
+    // Bestätigter Klick auf "Schließen" im Rechtsklick-Menü blendet den Button aus
+    // (Wieder-Einblenden über das Tray-Häkchen).
+    private void OnCloseMenuItemClick(object sender, RoutedEventArgs e) =>
+        HideRequested?.Invoke(this, EventArgs.Empty);
 
     private void OnBorderMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {

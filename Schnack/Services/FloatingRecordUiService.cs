@@ -29,6 +29,7 @@ public sealed class FloatingRecordUiService : IFloatingRecordUi
             {
                 _window = new FloatingRecordWindow();
                 _window.ToggleRecording += (_, _) => ToggleRecordingRequested?.Invoke(this, EventArgs.Empty);
+                _window.HideRequested += (_, _) => Hide();
                 _window.DragCompleted += (_, _) => SavePosition();
                 _window.LocationChanged += OnLocationChanged;
                 ApplyInitialPosition();

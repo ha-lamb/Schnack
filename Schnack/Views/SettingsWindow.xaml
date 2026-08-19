@@ -80,7 +80,6 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="180"/>
@@ -92,12 +91,11 @@
                               ItemsSource="{Binding WhisperModelOptions}"
                               SelectedItem="{Binding WhisperModel}"/>
 
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="GPU nutzen (CUDA):" VerticalAlignment="Center" Margin="0,0,0,8"/>
-                    <CheckBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,8" VerticalAlignment="Center"
-                              IsChecked="{Binding WhisperUseGpu}"/>
+                    <!-- GPU-Checkbox entfernt: CUDA-Runtime ist nicht referenziert, die Option wäre wirkungslos.
+                         Setting WhisperUseGpu bleibt für eine spätere CUDA-Iteration erhalten. -->
 
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Modell-Status:" VerticalAlignment="Center"/>
-                    <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal">
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Modell-Status:" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
                         <TextBlock Text="{Binding WhisperDownloadStatus}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                         <Button Content="Herunterladen"
                                 Command="{Binding DownloadWhisperModelCommand}"/>
