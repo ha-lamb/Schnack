@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Schnack.Models;
+using Schnack.Services.Internal;
 using Whisper.net;
 using Whisper.net.Ggml;
 
@@ -42,9 +43,26 @@ public sealed class WhisperLocalTranscriptionService : ITranscriptionService
 
         _logger.LogInformation("Whisper local transcription start, model: {Model}", modelName);
 
-        await using var processor = factory.CreateBuilder()
-            .WithLanguage(_settings.Settings.DictationLanguage.ToIsoCode())
-            .Build();
+        var vocabulary = VocabularyPrompt.Normalize(_settings.Settings.Vocabulary);
+        var builder = factory.CreateBuilder()
+            .WithLanguage(_settings.Settings.DictationLanguage.ToIsoCode());
+
+        if (vocabulary.Length > 0)
+        {
+            var speechPrompt = VocabularyPrompt.ForSpeech(
+                vocabulary, _settings.Settings.DictationLanguage, out var droppedTerms);
+            if (droppedTerms > 0)
+                _logger.LogWarning("Vocabulary too long for the speech prompt, {Count} term(s) omitted", droppedTerms);
+
+            // CarryInitialPrompt: ohne das wirkt die Begriffsliste nur im ersten 30-Sekunden-Fenster
+            // einer Aufnahme. Bei Qualitätsproblemen ist diese Zeile der erste Kandidat zum Entfernen.
+            builder = builder
+                .WithPrompt(speechPrompt)
+                .WithCarryInitialPrompt(true);
+            _logger.LogInformation("Whisper vocabulary terms: {Terms}", vocabulary.Length);
+        }
+
+        await using var processor = builder.Build();
 
         await using var fileStream = File.OpenRead(wavFilePath);
         var segments = new System.Text.StringBuilder();

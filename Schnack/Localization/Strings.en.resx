@@ -156,6 +156,8 @@ Download it now?</value></data>
   <data name="Settings_DebugLogging" xml:space="preserve"><value>Debug logging:</value></data>
   <data name="Settings_DebugLoggingOption" xml:space="preserve"><value>Verbose log (no transcripts)</value></data>
   <data name="Settings_DebugLoggingHint" xml:space="preserve"><value>Alternatively: SCHNACK_DEBUG=1 as an environment variable.</value></data>
+  <data name="Settings_VocabularySection" xml:space="preserve"><value>Vocabulary</value></data>
+  <data name="Settings_VocabularyHint" xml:space="preserve"><value>One term per line. Proper nouns and technical terms are then recognised more reliably and spelled correctly. The terms are sent to the selected backend with every dictation.</value></data>
   <data name="Settings_ApiKeysSection" xml:space="preserve"><value>API keys</value></data>
   <data name="Settings_AnthropicKey" xml:space="preserve"><value>Anthropic (Claude):</value></data>
   <data name="Settings_OpenAiKey" xml:space="preserve"><value>OpenAI (speech/chat):</value></data>

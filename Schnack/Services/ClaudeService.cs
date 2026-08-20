@@ -41,7 +41,7 @@ public sealed class ClaudeService : IPostProcessingService
             ?? throw new SchnackException(SchnackError.MissingAnthropicKey, "ANTHROPIC_API_KEY not set");
 
         var settings = _settingsService.Settings;
-        var prompt = DictationPrompts.Build(settings.DictationLanguage, mode, transcript);
+        var prompt = DictationPrompts.Build(settings.DictationLanguage, mode, transcript, settings.Vocabulary);
 
         var request = new MessagesRequest
         {

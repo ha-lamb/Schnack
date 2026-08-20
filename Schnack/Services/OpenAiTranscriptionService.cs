@@ -37,7 +37,14 @@ public sealed class OpenAiTranscriptionService : ITranscriptionService
 
         var model = _settings.Settings.OpenAiTranscriptionModel;
         var language = _settings.Settings.DictationLanguage;
-        _logger.LogInformation("OpenAI transcription request, model: {Model}, language: {Language}", model, language);
+        var vocabulary = VocabularyPrompt.Normalize(_settings.Settings.Vocabulary);
+        var speechPrompt = VocabularyPrompt.ForSpeech(vocabulary, language, out var droppedTerms);
+        if (droppedTerms > 0)
+            _logger.LogWarning("Vocabulary too long for the speech prompt, {Count} term(s) omitted", droppedTerms);
+
+        _logger.LogInformation(
+            "OpenAI transcription request, model: {Model}, language: {Language}, vocabulary terms: {Terms}",
+            model, language, vocabulary.Length);
 
         using var client = _httpClientFactory.CreateClient("OpenAi");
 
@@ -51,9 +58,7 @@ public sealed class OpenAiTranscriptionService : ITranscriptionService
                 form.Add(new StringContent(model, Encoding.UTF8), "model");
                 form.Add(new StringContent(language.ToIsoCode(), Encoding.UTF8), "language");
                 form.Add(new StringContent("text", Encoding.UTF8), "response_format");
-                form.Add(new StringContent(
-                    language == AppLanguage.En ? "Dictation in English." : "Diktat auf Deutsch.",
-                    Encoding.UTF8), "prompt");
+                form.Add(new StringContent(speechPrompt, Encoding.UTF8), "prompt");
 
                 using var req = new HttpRequestMessage(HttpMethod.Post, "v1/audio/transcriptions") { Content = form };
                 req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);

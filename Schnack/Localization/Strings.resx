@@ -156,6 +156,8 @@ Jetzt herunterladen?</value></data>
   <data name="Settings_DebugLogging" xml:space="preserve"><value>Debug-Logging:</value></data>
   <data name="Settings_DebugLoggingOption" xml:space="preserve"><value>Ausführliches Log (keine Transkripte)</value></data>
   <data name="Settings_DebugLoggingHint" xml:space="preserve"><value>Alternativ: SCHNACK_DEBUG=1 als Umgebungsvariable.</value></data>
+  <data name="Settings_VocabularySection" xml:space="preserve"><value>Vokabular</value></data>
+  <data name="Settings_VocabularyHint" xml:space="preserve"><value>Ein Begriff pro Zeile. Eigennamen und Fachbegriffe werden dadurch zuverlässiger erkannt und korrekt geschrieben. Die Begriffe werden bei jedem Diktat an das gewählte Backend übertragen.</value></data>
   <data name="Settings_ApiKeysSection" xml:space="preserve"><value>API-Keys</value></data>
   <data name="Settings_AnthropicKey" xml:space="preserve"><value>Anthropic (Claude):</value></data>
   <data name="Settings_OpenAiKey" xml:space="preserve"><value>OpenAI (Spracherkennung/Chat):</value></data>

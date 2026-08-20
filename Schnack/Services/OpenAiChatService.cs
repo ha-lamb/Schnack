@@ -43,7 +43,7 @@ public sealed class OpenAiChatService : IPostProcessingService
             ?? throw new SchnackException(SchnackError.MissingOpenAiKey, "OPENAI_API_KEY not set and no stored key");
 
         var model = _settings.Settings.OpenAiChatModel;
-        var prompt = DictationPrompts.Build(_settings.Settings.DictationLanguage, mode, transcript);
+        var prompt = DictationPrompts.Build(_settings.Settings.DictationLanguage, mode, transcript, _settings.Settings.Vocabulary);
 
         var requestBody = new ChatRequest
         {

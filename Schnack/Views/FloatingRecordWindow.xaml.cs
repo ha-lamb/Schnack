@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Media.Animation;
 using Schnack.Interop;
 
@@ -9,6 +10,17 @@ namespace Schnack.Views;
 
 public partial class FloatingRecordWindow : Window
 {
+    // Einmal geladen und eingefroren: die Quellen wechseln bei jedem Zustandswechsel.
+    private static readonly BitmapImage ColorLogo = LoadLogo("Schnack_Logo.png");
+    private static readonly BitmapImage WhiteLogo = LoadLogo("Schnack_Logo_White.png");
+
+    private static BitmapImage LoadLogo(string fileName)
+    {
+        var image = new BitmapImage(new Uri($"pack://application:,,,/Resources/{fileName}"));
+        image.Freeze();
+        return image;
+    }
+
     private bool _dragging;
     private Point _pressScreen;
     private bool _suppressToggle;
@@ -87,6 +99,10 @@ public partial class FloatingRecordWindow : Window
             RootBorder.Background = new SolidColorBrush(Color.FromArgb(0xF5, 0xFF, 0xFF, 0xFF));
             RootBorder.BorderBrush = new SolidColorBrush(Color.FromArgb(0xCC, 0x33, 0x33, 0x33));
         }
+
+        // Auf dem roten bzw. gelben Grund hat das petrolfarbene Logo zu wenig Kontrast —
+        // dort die weiße Silhouette zeigen.
+        LogoImage.Source = (isRecording || isProcessing) ? WhiteLogo : ColorLogo;
 
         _recordingStoryboard?.Stop(this);
         _processingStoryboard?.Stop(this);

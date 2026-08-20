@@ -12,7 +12,7 @@
     <RootNamespace>Schnack</RootNamespace>
     <ApplicationIcon>Resources\tray-icon.ico</ApplicationIcon>
     <!-- Versionierung: bei jedem Release Version + ReleaseDate aktualisieren -->
-    <Version>1.4.0</Version>
+    <Version>1.5.1</Version>
     <Company>Hauke Lamb</Company>
     <!-- Deutsch liegt in der Haupt-Assembly, Englisch als Satelliten-Assembly (en\Schnack.resources.dll).
          SatelliteResourceLanguages NICHT setzen — das würde Englisch aus dem Publish werfen. -->
@@ -22,7 +22,13 @@
 
   <!-- Veröffentlichungsdatum wird ins Assembly eingebettet und zur Laufzeit gelesen -->
   <ItemGroup>
-    <AssemblyMetadata Include="ReleaseDate" Value="2026-08-19" />
+    <AssemblyMetadata Include="ReleaseDate" Value="2026-08-20" />
+  </ItemGroup>
+
+  <!-- Interne Helfer (VocabularyPrompt, HttpRetry, …) für die Testsuite sichtbar machen,
+       ohne sie zur öffentlichen API zu erklären -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Schnack.Tests" />
   </ItemGroup>
 
   <ItemGroup>
@@ -43,6 +49,7 @@
   <ItemGroup>
     <Resource Include="Resources\tray-icon.ico" />
     <Resource Include="Resources\Schnack_Logo.png" />
+    <Resource Include="Resources\Schnack_Logo_White.png" />
   </ItemGroup>
 
   <!-- Velopack: eigene Main()-Methode übernimmt den App-Einstiegspunkt -->

@@ -83,6 +83,14 @@ API-Keys können alternativ über die Settings-UI hinterlegt werden — werden d
 - **`BringWindowToTop` nicht verwenden** — macht bei Fullscreen-Apps und UAC-Dialogen Probleme.
 - Alle P/Invoke-Signaturen ausschließlich in `Interop/Win32.cs`. Keine Duplikate. `MOUSEINPUT` dort ist nötig für die korrekte Union-Größe von `INPUT` — nicht entfernen.
 
+### Tray-Kontextmenü: Platzierung selbst gebaut
+
+`H.NotifyIcon` setzt das Menü in `ShowContextMenu` stur auf die Cursorposition (`Placement = AbsolutePoint`) und überlässt die Korrektur WPFs Popup-Automatik. Die greift nur, wenn die Menühöhe beim Öffnen schon bekannt ist — sonst rutscht das Menü hinter die Taskleiste. `ShowContextMenu` ist nicht `virtual`, und `PopupPlacement`/`PopupOffset`/`CustomPopupPosition` wirken nur für Balloons.
+
+Deshalb bricht `TrayService.OnPreviewContextMenuOpen` das Öffnen per `e.Handled = true` ab und übernimmt es selbst: messen, Position über `Services/Internal/TrayMenuPlacement.cs` gegen den Arbeitsbereich klemmen, öffnen, `SetForegroundWindow` nachziehen. **Der Handler ist kein überflüssiger Ballast — ohne ihn kommt der Fehler zurück.** Der `SetForegroundWindow`-Aufruf am Ende ist ebenfalls Pflicht, sonst schließt das Menü nicht beim Klick daneben.
+
+Der Arbeitsbereich kommt bewusst vom Monitor unter dem Cursor (`MonitorFromPoint`/`GetMonitorInfo`), nicht aus `SystemParameters.WorkArea` — das liefert nur den Primärmonitor.
+
 ### Threading
 
 - Recording-Stop-Callback läuft auf einem NAudio-Background-Thread.
@@ -124,8 +132,22 @@ API-Keys können alternativ über die Settings-UI hinterlegt werden — werden d
 
 - `AppSettings` ist ein `record` mit `with`-Updates. Persistenz: `%APPDATA%\Schnack\settings.json`.
 - **Schema-Versionierung** über `SettingsSchema` (aktuell **3**). Schema 2 brachte `BackendProvider`, Schema 3 die Sprachen (`UiLanguage`, `DictationLanguage`) und sprachneutrale Modi (`de_correct`/`de_to_en` → `correct`/`translate`).
-- Die Migration ist eine Kaskade aus `if (schema < N)`-Blöcken; **zurückgeschrieben wird einmal am Ende**, wenn `schema < CurrentSchema`. Bei neuen Feldern: Default in `AppSettings` setzen, `CurrentSchema` erhöhen, Block ergänzen, Test in `JsonSettingsServiceTests` nachziehen.
+- Die Migration ist eine Kaskade aus `if (schema < N)`-Blöcken; **zurückgeschrieben wird einmal am Ende**, wenn `schema < CurrentSchema`. Bei neuen Feldern: Default in `AppSettings` setzen und Test in `JsonSettingsServiceTests` nachziehen. `CurrentSchema` **nur** erhöhen, wenn bestehende Werte umgeschrieben werden müssen — rein additive Felder erhalten in alten Dateien automatisch den Record-Default.
 - Bestandsnutzer bleiben bei der Migration bewusst auf Deutsch; nur Neuinstallationen übernehmen die Windows-Sprache.
+
+### Vokabular
+
+- `AppSettings.Vocabulary` (`string[]`) hält Eigennamen und Fachbegriffe. `Services/Internal/VocabularyPrompt.cs` formatiert sie für die zwei Stellen, an denen sie wirken: als Vorab-Kontext der Spracherkennung (beide Backends, gekappt auf ~700 Zeichen wegen des 224-Token-Fensters) und als Anweisungsblock im Nachbearbeitungs-Prompt (`{{VOCABULARY}}`-Platzhalter in allen vier Templates).
+- Die Formulierungen dort sind **funktionale Prompts, keine UI-Texte** — sie gehören nicht in die `.resx`, sondern folgen der Sprache des jeweiligen Prompt-Templates.
+- Im lokalen Whisper-Pfad zusätzlich `WithCarryInitialPrompt(true)`, sonst wirkt die Liste nur im ersten 30-Sekunden-Fenster.
+- **Begriffe nie im Klartext loggen** — nur ihre Anzahl.
+
+### Logo und Icons
+
+- **Vektor-Master** sind `Resources/Schnack_Logo.svg` und `Schnack_Logo_White.svg` — Änderungen dort beginnen, PNG/ICO daraus neu exportieren (nicht umgekehrt).
+- Zwei Varianten: farbig (Petrol `#055859`, Welle `#FEF9ED`) für helle Untergründe, weiße Silhouette für den Aufnahme-Knopf in Rot (`#DC3545`) und Gelb (`#FFC107`) — dort hat Petrol zu wenig Kontrast. `FloatingRecordWindow.SetRecordingVisual` schaltet um.
+- Alle Grafiken sind **freigestellt** (transparent). Das frühere cremefarbene Quadrat ist entfallen; `SchnackBackgroundBrush` bleibt davon unberührt.
+- `tray-icon.ico` enthält 16/32/48/**256** px — die 256er braucht Windows für Alt+Tab, große Explorer-Ansicht und den Velopack-Installer.
 
 ### Lokalisierung
 
@@ -192,7 +214,9 @@ C:\Dropbox\Cowork\Schnack\
 │  │  ├─ Claude/                Anthropic Request/Response-DTOs
 │  │  └─ OpenAi/                OpenAI Request/Response-DTOs
 │  ├─ Interop/Win32.cs          P/Invoke gebündelt
-│  └─ Resources/                tray-icon.ico, Schnack_Logo.png
+│  └─ Resources/                tray-icon.ico (16/32/48/256), Schnack_Logo.png (farbig),
+│                              Schnack_Logo_White.png (weiße Silhouette für rot/gelb),
+│                              *.svg = Vektor-Master für künftige Änderungen
 ├─ Schnack.Tests/               xUnit + Moq (Services, Settings, Orchestrator, Update)
 └─ releases/                    Velopack-Output (gitignored; letztes Full-Paket für Delta-Updates behalten!)
 
@@ -232,6 +256,7 @@ Laufzeit-Pfade (NICHT im Repo):
 
 - `.gitignore` deckt ab: Build-Output (`bin/`, `obj/`, `publish/`, `releases/`, `*.nupkg`), Secrets (`secrets.dat`, `openai-secrets.dat`, `.env`), Laufzeitdaten (`models/`, `logs/`, `*.wav`, `*.log`), Editor-/Temp-Dateien (`*.user`, `*.suo`, `*.bak`, `*.tmp`, `*.swp`, `~$*`, `.vs/`), Dropbox-Conflict-Dateien (`*conflict*`, `*Conflict*`) und `.claude/settings.local.json`.
 - `.claudeignore` ist eine Obermenge davon (zusätzlich `*.bin` für Whisper-Modelle).
+- **Abgebrochene Builds** hinterlassen mitunter eine `Schnack_*_wpftmp.csproj` im Projektordner (WPF-Zwischenprojekt, wird nur bei Erfolg aufgeräumt). `dotnet run --project Schnack` scheitert dann mit „mehrere Projektdateien" — die Datei ist reines Artefakt und kann gelöscht werden. Beide Ignore-Dateien decken das Muster ab.
 - **Vor jedem `git push`** Schlüssel-Scan:
   ```pwsh
   git grep -E "sk-ant-[a-zA-Z0-9_-]{20,}|sk-proj-[a-zA-Z0-9_-]{20,}|ghp_[a-zA-Z0-9]{36,}"

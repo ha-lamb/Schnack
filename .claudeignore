@@ -21,3 +21,4 @@ logs/
 *.bin
 *conflict*
 *Conflict*
+*_wpftmp.csproj

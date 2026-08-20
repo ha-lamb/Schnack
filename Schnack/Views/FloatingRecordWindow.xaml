@@ -31,7 +31,7 @@
         <Border.RenderTransform>
             <ScaleTransform x:Name="RootScale" />
         </Border.RenderTransform>
-        <Image Source="/Resources/Schnack_Logo.png"
+        <Image x:Name="LogoImage" Source="/Resources/Schnack_Logo.png"
                Width="32" Height="32"
                Stretch="Uniform"
                HorizontalAlignment="Center"

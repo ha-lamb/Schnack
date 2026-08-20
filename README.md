@@ -115,6 +115,24 @@ Die Auswahl wird gespeichert und gilt auch nach einem Neustart.
 
 ---
 
+## Vokabular
+
+Eigennamen, Firmennamen und Fachbegriffe werden von der Spracherkennung gern verhört. Unter **Einstellungen → Vokabular** kannst du sie hinterlegen — ein Begriff pro Zeile:
+
+```
+Kubernetes
+Krzysztof
+Posteo
+```
+
+Die Liste wirkt an zwei Stellen: Sie geht als Vorab-Kontext an die Spracherkennung (damit die Begriffe überhaupt richtig *gehört* werden) und als Schreibvorgabe an die Nachbearbeitung (damit korrigiert wird, was trotzdem danebenging). Sie gilt für beide Diktiersprachen und überlebt auch eine Übersetzung.
+
+**Grenze:** An die Spracherkennung passen nur rund 150 Wörter — bei längeren Listen sehen die überzähligen Begriffe nur noch die Nachbearbeitung. Ein Hinweis darauf landet im Log.
+
+**Privacy:** Die Begriffe werden bei **jedem** Diktat an das gewählte Backend übertragen (OpenAI bzw. Anthropic), genau wie das Transkript selbst.
+
+---
+
 ## Einstellungen
 
 Einstellungsdatei: `%APPDATA%\Schnack\settings.json` (Schema-Version 3, automatische Migration)
@@ -135,6 +153,7 @@ Einstellungsdatei: `%APPDATA%\Schnack\settings.json` (Schema-Version 3, automati
 | `hotkey` | `Ctrl+Alt+S` | Globaler Aufnahme-Hotkey |
 | `restoreClipboard` | `true` | Vorherigen Clipboard-Text wiederherstellen |
 | `preferClipboardFreeInsertion` | `true` | Unicode-Tastatur statt Clipboard+Strg+V (empfohlen) |
+| `vocabulary` | `[]` | Eigennamen und Fachbegriffe für bessere Erkennung (ein Eintrag je Zeile im Dialog) |
 | `debugLogging` | `false` | Ausführliches Log (ohne Transkripte). Alternativ Env `SCHNACK_DEBUG=1`. Wirkt sofort. |
 | `microphoneDeviceId` | `null` | Mikrofon (null = System-Standard) |
 

@@ -1,4 +1,5 @@
 using Schnack.Models;
+using Schnack.Services.Internal;
 
 namespace Schnack.Services;
 
@@ -26,7 +27,7 @@ internal static class DictationPrompts
 
         Gib ausschließlich den finalen korrigierten Text aus, ohne Erklärung, ohne Markdown, ohne Anführungszeichen.
 
-        Text:
+        {{VOCABULARY}}Text:
         {{TRANSCRIPT}}
         """;
 
@@ -52,7 +53,7 @@ internal static class DictationPrompts
 
         Output only the final corrected text, without explanation, without Markdown, without quotation marks.
 
-        Text:
+        {{VOCABULARY}}Text:
         {{TRANSCRIPT}}
         """;
 
@@ -71,7 +72,7 @@ internal static class DictationPrompts
 
         Gib ausschließlich den finalen englischen Text aus.
 
-        Text:
+        {{VOCABULARY}}Text:
         {{TRANSCRIPT}}
         """;
 
@@ -90,12 +91,13 @@ internal static class DictationPrompts
 
         Output only the final German text.
 
-        Text:
+        {{VOCABULARY}}Text:
         {{TRANSCRIPT}}
         """;
 
     /// <summary>Wählt den Prompt anhand Diktiersprache und Modus; Übersetzen zielt stets auf die andere Sprache.</summary>
-    internal static string Build(AppLanguage language, DictationMode mode, string transcript)
+    internal static string Build(
+        AppLanguage language, DictationMode mode, string transcript, string[]? vocabulary = null)
     {
         var template = (language, mode) switch
         {
@@ -104,6 +106,15 @@ internal static class DictationPrompts
             (AppLanguage.En, DictationMode.Correct) => EnCorrect,
             _ => EnToDe
         };
-        return template.Replace("{{TRANSCRIPT}}", transcript);
+
+        // Der Vokabel-Block folgt der Sprache des Templates: die De-Varianten sind deutsch
+        // formuliert, die En-Varianten englisch.
+        var terms = VocabularyPrompt.Normalize(vocabulary);
+        var block = VocabularyPrompt.ForPostProcessing(terms, language);
+        var replacement = block.Length == 0 ? string.Empty : block + "\n\n";
+
+        return template
+            .Replace("{{VOCABULARY}}", replacement)
+            .Replace("{{TRANSCRIPT}}", transcript);
     }
 }

@@ -115,6 +115,8 @@ public static class Strings
     public static string Settings_DebugLogging => Get(nameof(Settings_DebugLogging));
     public static string Settings_DebugLoggingOption => Get(nameof(Settings_DebugLoggingOption));
     public static string Settings_DebugLoggingHint => Get(nameof(Settings_DebugLoggingHint));
+    public static string Settings_VocabularySection => Get(nameof(Settings_VocabularySection));
+    public static string Settings_VocabularyHint => Get(nameof(Settings_VocabularyHint));
     public static string Settings_ApiKeysSection => Get(nameof(Settings_ApiKeysSection));
     public static string Settings_AnthropicKey => Get(nameof(Settings_AnthropicKey));
     public static string Settings_OpenAiKey => Get(nameof(Settings_OpenAiKey));

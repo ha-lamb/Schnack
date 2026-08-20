@@ -167,6 +167,23 @@ public class JsonSettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task SaveAsync_ThenLoadAsync_RoundTripsVocabulary()
+    {
+        var service = new TestableJsonSettingsService(
+            Mock.Of<ILogger<JsonSettingsService>>(), _tempDir);
+        await service.LoadAsync();
+
+        service.UpdateSettings(service.Settings with { Vocabulary = ["Kubernetes", "Krzysztof"] });
+        await service.SaveAsync();
+
+        var reloaded = new TestableJsonSettingsService(
+            Mock.Of<ILogger<JsonSettingsService>>(), _tempDir);
+        await reloaded.LoadAsync();
+
+        Assert.Equal(["Kubernetes", "Krzysztof"], reloaded.Settings.Vocabulary);
+    }
+
+    [Fact]
     public async Task UpdateSettings_ChangesSettingsProperty()
     {
         var service = new TestableJsonSettingsService(

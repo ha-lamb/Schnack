@@ -43,6 +43,10 @@ public record AppSettings
     /// <summary>Wenn true: Text per SendInput Unicode (kein Clipboard für den Inhalt). Empfohlen.</summary>
     public bool PreferClipboardFreeInsertion { get; init; } = true;
 
+    /// <summary>Eigennamen und Fachbegriffe, die die Spracherkennung bevorzugt erkennen soll.
+    /// Wirkt als Vorab-Kontext der Erkennung und als Schreibvorgabe in der Nachbearbeitung.</summary>
+    public string[] Vocabulary { get; init; } = [];
+
     public bool DebugLogging { get; init; } = false;
     public string? TempAudioPath { get; init; } = null;
 

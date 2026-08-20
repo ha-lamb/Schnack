@@ -6,6 +6,7 @@ using Schnack.Commands;
 using Schnack.Localization;
 using Schnack.Models;
 using Schnack.Services;
+using Schnack.Services.Internal;
 
 namespace Schnack.ViewModels;
 
@@ -51,6 +52,7 @@ public class SettingsViewModel : INotifyPropertyChanged
     private readonly bool _baseRestoreClipboard;
     private readonly bool _basePreferClipboardFreeInsertion;
     private readonly bool _baseDebugLogging;
+    private readonly string _baseVocabularyText;
     private readonly int? _baseMicrophoneDeviceId;
 
     private BackendProvider _backendProvider;
@@ -65,6 +67,7 @@ public class SettingsViewModel : INotifyPropertyChanged
     private bool _restoreClipboard;
     private bool _preferClipboardFreeInsertion;
     private bool _debugLogging;
+    private string _vocabularyText;
     private MicrophoneOption? _selectedMicrophone;
 
     private string _whisperDownloadStatus = "";
@@ -105,6 +108,7 @@ public class SettingsViewModel : INotifyPropertyChanged
         _restoreClipboard = s.RestoreClipboard;
         _preferClipboardFreeInsertion = s.PreferClipboardFreeInsertion;
         _debugLogging = s.DebugLogging;
+        _vocabularyText = string.Join(Environment.NewLine, s.Vocabulary);
 
         // Baseline festhalten
         _baseBackendProvider = _backendProvider;
@@ -119,6 +123,7 @@ public class SettingsViewModel : INotifyPropertyChanged
         _baseRestoreClipboard = _restoreClipboard;
         _basePreferClipboardFreeInsertion = _preferClipboardFreeInsertion;
         _baseDebugLogging = _debugLogging;
+        _baseVocabularyText = _vocabularyText;
         _baseMicrophoneDeviceId = s.MicrophoneDeviceId;
 
         MicrophoneOptions = new ObservableCollection<MicrophoneOption>
@@ -152,6 +157,7 @@ public class SettingsViewModel : INotifyPropertyChanged
         _restoreClipboard != _baseRestoreClipboard ||
         _preferClipboardFreeInsertion != _basePreferClipboardFreeInsertion ||
         _debugLogging != _baseDebugLogging ||
+        _vocabularyText != _baseVocabularyText ||
         _selectedMicrophone?.DeviceIndex != _baseMicrophoneDeviceId;
 
     public BackendProvider BackendProvider
@@ -255,6 +261,12 @@ public class SettingsViewModel : INotifyPropertyChanged
         set { _debugLogging = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); }
     }
 
+    public string VocabularyText
+    {
+        get => _vocabularyText;
+        set { _vocabularyText = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirty)); }
+    }
+
     public string WhisperDownloadStatus
     {
         get => _whisperDownloadStatus;
@@ -311,6 +323,8 @@ public class SettingsViewModel : INotifyPropertyChanged
             RestoreClipboard = _restoreClipboard,
             PreferClipboardFreeInsertion = _preferClipboardFreeInsertion,
             DebugLogging = _debugLogging,
+            Vocabulary = VocabularyPrompt.Normalize(
+                _vocabularyText.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)),
             MicrophoneDeviceId = SelectedMicrophone?.DeviceIndex
         };
 

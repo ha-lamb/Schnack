@@ -52,6 +52,47 @@ internal static class Win32
     [DllImport("user32.dll", SetLastError = true)]
     internal static extern nint SetWindowLongPtr(nint hWnd, int nIndex, nint dwNewLong);
 
+    // ── Cursor und Monitor: für die Platzierung des Tray-Kontextmenüs ────
+    // SystemParameters.WorkArea liefert nur den Primärmonitor — für ein Menü,
+    // das am Cursor aufgeht, brauchen wir den Arbeitsbereich des Monitors dort.
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetCursorPos(out POINT lpPoint);
+
+    [DllImport("user32.dll")]
+    internal static extern nint MonitorFromPoint(POINT pt, uint dwFlags);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetMonitorInfo(nint hMonitor, ref MONITORINFO lpmi);
+
+    internal const uint MONITOR_DEFAULTTONEAREST = 2;
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct POINT
+    {
+        public int X;
+        public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct RECT
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct MONITORINFO
+    {
+        public int cbSize;
+        public RECT rcMonitor;
+        public RECT rcWork;
+        public uint dwFlags;
+    }
+
     // ── Structs ───────────────────────────────────────────────────────────
     [StructLayout(LayoutKind.Sequential)]
     internal struct INPUT

@@ -2,11 +2,11 @@
 
 > Lebendige Status-Übersicht: aktueller Arbeitsstand und offene Punkte. Architektur und Konventionen stehen in `CLAUDE.md`.
 
-**Stand:** 19. August 2026
+**Stand:** 20. August 2026
 **Version:** siehe `<Version>` in `Schnack/Schnack.csproj`
 **Repo:** `ha-lamb/Schnack` (**public** seit 19.08.2026, MIT), `main` synchron
-**Build/Tests:** grün (69 Tests), keine Warnungen
-**Letzter Release:** v1.3.2 (19.08.2026, GitHub Releases — Setup, Portable, Full + Delta)
+**Build/Tests:** grün (97 Tests), keine Warnungen
+**Letzter Release:** v1.5.1 (20.08.2026, GitHub Releases — Setup, Portable, Full + Delta)
 
 ---
 
@@ -15,11 +15,15 @@
 - App ist funktional komplett: Hotkey- und Floating-Button-Bedienung, beide Backends (OpenAI-Cloud / Claude mit lokalem Whisper), Settings-Dialog mit Backend-Umschaltung und Dirty-Tracking, DPAPI-Secrets, Schema-Migration, Velopack-Integration mit Update-UX.
 - **Zweisprachigkeit (08/2026):** Oberflächensprache beim Erststart wählbar, Wechsel zur Laufzeit ohne Neustart. Diktat als **vier direkte Optionen** (Deutsch, Englisch, Deutsch → Englisch, Englisch → Deutsch) in Tray und Einstellungen, definiert in `Models/DictationChoice.cs`; Auswahl wird persistiert. Vier Prompt-Varianten. Fehlerzuordnung läuft über `SchnackError`-Codes statt über Exception-Texte — Voraussetzung dafür, dass Übersetzungen keine Fehlerpfade brechen. Settings-Schema 3 mit Migration.
 - Komplett-Review 08/2026 abgeschlossen: Redundanzen zentralisiert (`ApiErrorLog`, Update-Check-Kern), Tray-Modus-Häkchen-Bug behoben, Pipeline in `DictationOrchestrator` extrahiert (mit State-Machine-Tests), tote Dateien und historische Arbeitsdokumente entfernt, Doku auf Ist-Zustand neu geschrieben.
-- Lokaler Velopack-Probebuild erfolgreich (`releases/` enthält Setup-EXE + Full-Paket 1.3.1 — Basis für künftige Delta-Updates, nicht löschen).
+- `releases/` enthält die gepackten Stände (zuletzt 1.4.0) — das jeweils letzte Full-Paket ist die Basis für künftige Delta-Updates und darf nicht gelöscht werden.
+- **Vokabelliste (08/2026):** Eigennamen und Fachbegriffe unter „Einstellungen → Vokabular" hinterlegbar. Wirkt zweifach — als Vorab-Kontext beider Spracherkennungen (`VocabularyPrompt.ForSpeech`, gekappt aufs Kontextfenster) und als Schreibvorgabe im Nachbearbeitungs-Prompt (`{{VOCABULARY}}`). Kein Schema-Sprung nötig (rein additives Feld).
+
+- **Logo überarbeitet (08/2026):** freigestellte Vektorfassung, zusätzlich weiße Silhouette für den Aufnahme-Knopf auf Rot/Gelb. SVG-Master liegen in `Resources/`. Tray-Icon neu erzeugt inkl. der bisher fehlenden 256-px-Größe.
+- **Tray-Menü-Platzierung (08/2026):** `H.NotifyIcon` positioniert das Kontextmenü ohne Rücksicht auf den Arbeitsbereich — es rutschte sporadisch hinter die Taskleiste. `TrayService` übernimmt das Öffnen jetzt selbst, Rechenlogik in `Services/Internal/TrayMenuPlacement.cs`.
 
 ## Offene Punkte
 
-- [ ] **Update-Mechanismus end-to-end verifizieren:** `Schnack-win-Setup.exe` (v1.3.2) installieren; beim übernächsten Release prüfen, dass die App das Update selbst findet und per Delta installiert.
+- [ ] **Update-Mechanismus end-to-end verifizieren:** Mit v1.4.0 kann die installierte 1.3.2 den In-App-Update-Pfad erstmals wirklich durchlaufen (Repo ist public) — prüfen, ob Benachrichtigung, Delta-Download und Neustart greifen.
 - [x] Erster GitHub-Release (v1.3.2, 19.08.2026) — erledigt.
 - [x] Repo public gestellt (19.08.2026) — In-App-Update-Check damit funktionsfähig.
 

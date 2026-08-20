@@ -1,4 +1,10 @@
 using System.Windows;
+using Schnack.Services.Internal;
+using Schnack.Interop;
+using System.Windows.Media;
+using System.Windows.Interop;
+using System.Windows.Controls.Primitives;
+using System.Runtime.InteropServices;
 using System.Windows.Controls;
 using H.NotifyIcon;
 using H.NotifyIcon.Core;
@@ -49,6 +55,9 @@ public sealed class TrayService : ITrayService
             _taskbarIcon.Icon = new System.Drawing.Icon(iconStream);
 
         _taskbarIcon.TrayLeftMouseDoubleClick += (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty);
+
+        // Platzierung selbst übernehmen — siehe OnPreviewContextMenuOpen
+        _taskbarIcon.PreviewTrayContextMenuOpen += OnPreviewContextMenuOpen;
 
         _taskbarIcon.ContextMenu = BuildContextMenu();
         _taskbarIcon.ForceCreate();
@@ -139,6 +148,94 @@ public sealed class TrayService : ITrayService
         menu.Items.Add(exitItem);
 
         return menu;
+    }
+
+    /// <summary>
+    /// H.NotifyIcon setzt das Menü stur auf die Cursorposition (Placement = AbsolutePoint)
+    /// und überlässt die Korrektur WPFs Popup-Automatik. Die greift aber nur, wenn die
+    /// Menühöhe beim Öffnen schon bekannt ist — sonst wächst das Menü nach unten hinter
+    /// die Taskleiste. ShowContextMenu ist nicht überschreibbar, deshalb brechen wir das
+    /// Öffnen hier ab und machen es selbst.
+    /// </summary>
+    private void OnPreviewContextMenuOpen(object sender, RoutedEventArgs e)
+    {
+        var menu = _taskbarIcon?.ContextMenu;
+        if (menu == null)
+            return;
+
+        e.Handled = true;   // verhindert die Platzierung durch die Bibliothek
+
+        try
+        {
+            var scale = GetDpiScale();
+            var cursor = GetCursorPositionDip(scale);
+            var workArea = GetWorkAreaDip(scale);
+            var size = MeasureMenu(menu);
+
+            var position = TrayMenuPlacement.Place(cursor, size, workArea);
+            menu.Placement = PlacementMode.AbsolutePoint;
+            menu.HorizontalOffset = position.X;
+            menu.VerticalOffset = position.Y;
+        }
+        catch (Exception ex)
+        {
+            // Lieber ein schlecht platziertes Menü als gar keines
+            _logger.LogWarning("Tray menu placement failed: {Type}", ex.GetType().Name);
+        }
+
+        menu.IsOpen = true;
+
+        // Ohne Vordergrund-Fokus bliebe das Menü offen, wenn man daneben klickt.
+        // Das erledigt sonst die Bibliothek direkt nach dem Öffnen.
+        if (PresentationSource.FromVisual(menu) is HwndSource source)
+            Win32.SetForegroundWindow(source.Handle);
+    }
+
+    private double GetDpiScale()
+    {
+        try { return VisualTreeHelper.GetDpi(_taskbarIcon!).DpiScaleY; }
+        catch { return 1.0; }
+    }
+
+    private static Point GetCursorPositionDip(double scale)
+    {
+        if (!Win32.GetCursorPos(out var p))
+            return new Point(0, 0);
+        return new Point(p.X / scale, p.Y / scale);
+    }
+
+    /// <summary>Arbeitsbereich des Monitors unter dem Cursor — nicht des Primärmonitors.</summary>
+    private static Rect GetWorkAreaDip(double scale)
+    {
+        Win32.GetCursorPos(out var p);
+        var monitor = Win32.MonitorFromPoint(p, Win32.MONITOR_DEFAULTTONEAREST);
+        var info = new Win32.MONITORINFO { cbSize = Marshal.SizeOf<Win32.MONITORINFO>() };
+
+        if (monitor == 0 || !Win32.GetMonitorInfo(monitor, ref info))
+            return SystemParameters.WorkArea;   // Rückfall: Primärmonitor
+
+        var w = info.rcWork;
+        return new Rect(w.Left / scale, w.Top / scale,
+                        (w.Right - w.Left) / scale, (w.Bottom - w.Top) / scale);
+    }
+
+    /// <summary>Misst das Menü vor dem Öffnen; fällt auf eine Schätzung zurück, falls
+    /// das Template noch nicht steht (kommt beim allerersten Öffnen vor).</summary>
+    private static Size MeasureMenu(ContextMenu menu)
+    {
+        menu.ApplyTemplate();
+        menu.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var size = menu.DesiredSize;
+
+        if (size.Height > 0 && size.Width > 0)
+            return size;
+
+        // Grobschätzung aus dem bekannten Aufbau des Menüs
+        const double itemHeight = 22, separatorHeight = 7, chrome = 8;
+        double height = chrome, width = 240;
+        foreach (var entry in menu.Items)
+            height += entry is Separator ? separatorHeight : itemHeight;
+        return new Size(width, height);
     }
 
     public void UpdateState(RecordingState state)
