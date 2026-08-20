@@ -23,9 +23,13 @@
 
 ## Offene Punkte
 
-- [ ] **Update-Mechanismus end-to-end verifizieren:** Mit v1.4.0 kann die installierte 1.3.2 den In-App-Update-Pfad erstmals wirklich durchlaufen (Repo ist public) — prüfen, ob Benachrichtigung, Delta-Download und Neustart greifen.
-- [x] Erster GitHub-Release (v1.3.2, 19.08.2026) — erledigt.
+Derzeit keine. Alle Issues im GitHub-Tracker sind geschlossen.
+
+### Erledigt (08/2026)
+
+- [x] Erster GitHub-Release (v1.3.2, 19.08.2026).
 - [x] Repo public gestellt (19.08.2026) — In-App-Update-Check damit funktionsfähig.
+- [x] **Update-Mechanismus end-to-end verifiziert** (20.08.2026): Sprung von der installierten v1.3.2 auf v1.5.1 lief über Benachrichtigung, Delta-Download (116 KB) und Neustart ohne Nacharbeit durch.
 
 ## Bekannte, bewusst offene Punkte aus dem Review 08/2026
 
