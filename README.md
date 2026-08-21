@@ -2,14 +2,18 @@
 
 Internes Windows-11-Tray-Tool für persönliche Nutzung. Nimmt gesprochenen Text per globalem Hotkey oder schwebendem Button auf, transkribiert ihn und fügt das Ergebnis — zurückhaltend geglättet oder übersetzt — automatisch ins zuvor aktive Textfeld ein.
 
-**Zweisprachig:** Diktiert werden kann auf **Deutsch oder Englisch**, wahlweise mit Übersetzung in die jeweils andere Sprache. Die Oberfläche ist davon unabhängig auf Deutsch oder Englisch einstellbar; beim ersten Start wird sie abgefragt (vorbelegt aus der Windows-Sprache) und ist später jederzeit änderbar — der Wechsel wirkt sofort, ohne Neustart.
+**Zweisprachig:** Diktiert werden kann auf **Deutsch oder Englisch**, mit eingeschalteter Glättung wahlweise mit Übersetzung in die jeweils andere Sprache. Die Oberfläche ist davon unabhängig auf Deutsch oder Englisch einstellbar; beim ersten Start wird sie abgefragt (vorbelegt aus der Windows-Sprache) und ist später jederzeit änderbar — der Wechsel wirkt sofort, ohne Neustart.
 
-**Zwei wählbare Backends** (Einstellungen → Backend):
+**Zwei Schichten** (Einstellungen → Reiter „Spracherkennung" und „Nachbearbeitung"):
 
-| Backend | Spracherkennung | Textverarbeitung | Privacy |
-|---------|-----------------|------------------|---------|
-| **OpenAI** (Standard) | OpenAI Cloud-STT | OpenAI Chat Completions | Audio + Transkript gehen an OpenAI |
-| **Claude** | Whisper lokal (Whisper.net) | Anthropic Claude API | Audio bleibt lokal, nur Transkript geht an Anthropic |
+| Schicht | Wer | Privacy |
+|---------|-----|---------|
+| **Spracherkennung** | Whisper lokal (Whisper.net) — immer | nichts verlässt das Gerät |
+| **Nachbearbeitung** (optional) | OpenAI **oder** Anthropic Claude | nur das Transkript geht an den gewählten Dienst |
+
+Ohne Zugangsschlüssel ist Schnack sofort benutzbar: Das Diktat wird lokal erkannt und der Rohtext eingefügt. Wer glätten oder übersetzen möchte, hinterlegt einen Schlüssel für OpenAI oder Claude und schaltet **„Text glätten"** ein — dann werden Zeichensetzung, Füllwörter und auf Wunsch die Übersetzung vom Sprachmodell übernommen.
+
+**Übersetzen setzt die Glättung voraus.** Ohne KI-Dienst stehen nur die beiden Diktiersprachen zur Wahl; die Übersetzungsoptionen werden in Tray und Einstellungen ausgeblendet.
 
 ---
 
@@ -19,20 +23,21 @@ Internes Windows-11-Tray-Tool für persönliche Nutzung. Nimmt gesprochenen Text
 - [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) (x64) — wird beim Start geprüft
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (nur für Entwicklung)
 - Mikrofon
-- Je nach Backend: OpenAI-API-Key **oder** Anthropic-API-Key
-- Beim Claude-Backend: einmaliger Whisper-Modell-Download (ca. 1,6 GB für `large-v3-turbo`)
+- Einmaliger Whisper-Modell-Download (ca. 1,6 GB für `large-v3-turbo`) — Voraussetzung für jedes Diktat
+- Nur für Glätten und Übersetzen: OpenAI-API-Key **oder** Anthropic-API-Key
+- Für die GPU-Beschleunigung: ein Grafiktreiber mit Vulkan-Unterstützung (bei aktuellen Karten vorhanden)
 
 ---
 
 ## Setup
 
-### API-Key setzen (je nach Backend-Wahl)
+### API-Key setzen (nur für Glätten und Übersetzen)
 
 ```powershell
-# OpenAI-Backend (Standard):
+# für die Nachbearbeitung mit OpenAI:
 setx OPENAI_API_KEY "sk-..."
 
-# Claude-Backend:
+# oder für die Nachbearbeitung mit Claude:
 setx ANTHROPIC_API_KEY "sk-ant-..."
 
 # Danach Terminal und VS Code neu starten
@@ -129,7 +134,9 @@ Die Liste wirkt an zwei Stellen: Sie geht als Vorab-Kontext an die Spracherkennu
 
 **Grenze:** An die Spracherkennung passen nur rund 150 Wörter — bei längeren Listen sehen die überzähligen Begriffe nur noch die Nachbearbeitung. Ein Hinweis darauf landet im Log.
 
-**Privacy:** Die Begriffe werden bei **jedem** Diktat an das gewählte Backend übertragen (OpenAI bzw. Anthropic), genau wie das Transkript selbst.
+**Privacy:** Bei eingeschalteter Glättung werden die Begriffe bei **jedem** Diktat an den gewählten KI-Dienst übertragen, genau wie das Transkript selbst. Ohne Glättung bleiben sie auf dem Gerät.
+
+**Ohne Glättung wirkt die Liste nur halb:** Sie geht weiterhin als Vorab-Kontext in die Erkennung, aber die Schreibvorgabe in der Nachbearbeitung entfällt mit dem Schritt, der sie ausgewertet hätte.
 
 ---
 
@@ -148,8 +155,10 @@ Einstellungsdatei: `%APPDATA%\Schnack\settings.json` (Schema-Version 3, automati
 | `openAiChatMaxTokens` | `4096` | Maximale Ausgabelänge (OpenAI) |
 | `claudeModel` | `claude-haiku-4-5` | Claude-Modell (Textverarbeitung) |
 | `claudeMaxTokens` | `4096` | Maximale Ausgabelänge (Claude) |
-| `whisperModel` | `large-v3-turbo` | Lokales Whisper-Modell (Claude-Backend) |
-| `whisperUseGpu` | `false` | CUDA-GPU für Whisper nutzen |
+| `whisperModel` | `large-v3-turbo` | Lokales Whisper-Modell für die Spracherkennung |
+| `whisperUseGpu` | `false` | Grafikkarte (Vulkan) für Whisper nutzen — auf getesteter Hardware rund 20-mal schneller als die CPU |
+| `whisperPreload` | `true` | Modell beim Start vorladen, damit das erste Diktat nicht darauf wartet |
+| `textSmoothing` | `true` | Transkript vom Sprachmodell glätten/übersetzen lassen. Aus: Rohtext einfügen. |
 | `hotkey` | `Ctrl+Alt+S` | Globaler Aufnahme-Hotkey |
 | `restoreClipboard` | `true` | Vorherigen Clipboard-Text wiederherstellen |
 | `preferClipboardFreeInsertion` | `true` | Unicode-Tastatur statt Clipboard+Strg+V (empfohlen) |
@@ -166,7 +175,8 @@ Logs: `%APPDATA%\Schnack\logs\schnack-<datum>.log` (7 Tage Aufbewahrung)
 ## Bekannte Einschränkungen
 
 - **Nur Text-Clipboard:** Beim Clipboard-Einfügeweg wird nur vorheriger Text gesichert/wiederhergestellt; Bilder und Dateien im Clipboard gehen verloren (`restoreClipboard = true`).
-- **Erststart-Download (Claude-Backend):** Das Whisper-Modell muss einmalig heruntergeladen werden (Einstellungen → Herunterladen).
+- **Erststart-Download:** Das Whisper-Modell muss einmalig heruntergeladen werden (Einstellungen → Spracherkennung → Herunterladen). Ohne Modell kann Schnack nicht diktieren.
+- **Übersetzen nur mit KI-Dienst:** Whisper übersetzt nicht selbst — ohne hinterlegten Schlüssel und eingeschaltete Glättung entfallen die Übersetzungsoptionen.
 - **Nur Deutsch und Englisch:** Weitere Sprachen und automatische Spracherkennung des Diktats sind nicht vorgesehen.
 - **Sprachauswahl nicht im Installer:** Die Setup-EXE läuft ohne Optionsdialoge durch (Preis für die UAC-freie Installation); die Sprache wird beim ersten Start abgefragt.
 - **Kein Auto-Stop:** Keine Voice Activity Detection — Aufnahme wird manuell gestoppt.
@@ -177,8 +187,9 @@ Logs: `%APPDATA%\Schnack\logs\schnack-<datum>.log` (7 Tage Aufbewahrung)
 
 ## Privacy
 
-- **OpenAI-Backend:** Die WAV-Aufnahme geht zur Transkription an OpenAI; das Transkript wird dort auch korrigiert/übersetzt.
-- **Claude-Backend:** Audio bleibt vollständig lokal (Whisper.net); nur das Transkript geht zur Korrektur/Übersetzung an Anthropic.
+- **Audio verlässt das Gerät nie.** Die Spracherkennung läuft vollständig lokal über Whisper.net.
+- **Mit eingeschalteter Glättung** geht das Transkript zur Korrektur und Übersetzung an den gewählten Dienst (OpenAI oder Anthropic) — die Aufnahme selbst nicht.
+- **Ohne Glättung** arbeitet Schnack vollständig offline; es verlässt nichts das Gerät.
 - Logs enthalten keine Transkripte, keine API-Keys, keine Audiodaten.
 - Temporäre WAV-Dateien (`%TEMP%\Schnack\`) werden nach der Verarbeitung gelöscht.
 
@@ -191,7 +202,7 @@ Logs: `%APPDATA%\Schnack\logs\schnack-<datum>.log` (7 Tage Aufbewahrung)
 | H.NotifyIcon.Wpf | MIT | WPF Tray-Icon |
 | NHotkey.Wpf | MIT | Globaler Hotkey |
 | NAudio | MIT | Audio-Aufnahme |
-| Whisper.net (+ Runtime) | MIT | Lokale Spracherkennung (Claude-Backend) |
+| Whisper.net (+ Runtime, Runtime.Vulkan) | MIT | Lokale Spracherkennung, wahlweise auf der Grafikkarte |
 | Velopack | MIT | Installer + Auto-Update |
 | Microsoft.Extensions.* | MIT | DI, Logging, HTTP |
 | Serilog.* | Apache 2.0 | File-Logging |

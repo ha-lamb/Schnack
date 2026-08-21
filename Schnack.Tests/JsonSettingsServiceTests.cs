@@ -31,13 +31,12 @@ public class JsonSettingsServiceTests : IDisposable
         await service.LoadAsync();
 
         Assert.Equal("correct", service.Settings.DefaultMode);
-        Assert.Equal("gpt-4o-mini-transcribe", service.Settings.OpenAiTranscriptionModel);
         Assert.Equal("claude-haiku-4-5", service.Settings.ClaudeModel);
         Assert.Equal(4096, service.Settings.ClaudeMaxTokens);
         Assert.True(service.Settings.RestoreClipboard);
         Assert.True(service.Settings.PreferClipboardFreeInsertion);
         Assert.False(service.Settings.DebugLogging);
-        Assert.Equal(3, service.Settings.SettingsSchema);
+        Assert.Equal(4, service.Settings.SettingsSchema);
         Assert.True(service.CreatedDefaultSettingsOnLastLoad);
     }
 
@@ -52,8 +51,8 @@ public class JsonSettingsServiceTests : IDisposable
             Mock.Of<ILogger<JsonSettingsService>>(), _tempDir);
         await service.LoadAsync();
 
-        Assert.Equal(3, service.Settings.SettingsSchema);
-        Assert.Equal(BackendProvider.OpenAi, service.Settings.BackendProvider);
+        Assert.Equal(4, service.Settings.SettingsSchema);
+        Assert.Equal(AiService.OpenAi, service.Settings.AiService);
 
         var json = await File.ReadAllTextAsync(path);
         Assert.Contains("settingsSchema", json, StringComparison.Ordinal);
@@ -73,13 +72,13 @@ public class JsonSettingsServiceTests : IDisposable
             Mock.Of<ILogger<JsonSettingsService>>(), _tempDir);
         await service.LoadAsync();
 
-        Assert.Equal(3, service.Settings.SettingsSchema);
+        Assert.Equal(4, service.Settings.SettingsSchema);
         Assert.Equal(expectedMode, service.Settings.DefaultMode);
         // Bestandsnutzer bleiben auf Deutsch — ein Update darf die App nicht umstellen
         Assert.Equal(AppLanguage.De, service.Settings.UiLanguage);
         Assert.Equal(AppLanguage.De, service.Settings.DictationLanguage);
-        // Backend darf die Migration nicht überschreiben
-        Assert.Equal(BackendProvider.Claude, service.Settings.BackendProvider);
+        // Der alte Backend-Wert muss bis in die Schema-4-Migration durchkommen
+        Assert.Equal(AiService.Claude, service.Settings.AiService);
 
         // Migration muss zurückgeschrieben werden
         var reloaded = new TestableJsonSettingsService(
@@ -93,7 +92,7 @@ public class JsonSettingsServiceTests : IDisposable
     {
         var path = Path.Combine(_tempDir, "settings.json");
         await File.WriteAllTextAsync(path,
-            """{"settingsSchema":3,"uiLanguage":"en","dictationLanguage":"en","defaultMode":"translate"}""");
+            """{"settingsSchema":4,"uiLanguage":"en","dictationLanguage":"en","defaultMode":"translate"}""");
 
         var service = new TestableJsonSettingsService(
             Mock.Of<ILogger<JsonSettingsService>>(), _tempDir);
@@ -140,7 +139,6 @@ public class JsonSettingsServiceTests : IDisposable
         var updated = service.Settings with
         {
             DefaultMode = "de_to_en",
-            OpenAiTranscriptionModel = "whisper-1",
             ClaudeModel = "claude-sonnet-4-6",
             ClaudeMaxTokens = 2048,
             MicrophoneDeviceId = 0,
@@ -157,7 +155,6 @@ public class JsonSettingsServiceTests : IDisposable
         await service2.LoadAsync();
 
         Assert.Equal("de_to_en", service2.Settings.DefaultMode);
-        Assert.Equal("whisper-1", service2.Settings.OpenAiTranscriptionModel);
         Assert.Equal("claude-sonnet-4-6", service2.Settings.ClaudeModel);
         Assert.Equal(2048, service2.Settings.ClaudeMaxTokens);
         Assert.Equal(0, service2.Settings.MicrophoneDeviceId);
@@ -190,10 +187,89 @@ public class JsonSettingsServiceTests : IDisposable
             Mock.Of<ILogger<JsonSettingsService>>(), _tempDir);
         await service.LoadAsync();
 
-        var newSettings = service.Settings with { OpenAiTranscriptionModel = "gpt-4o-transcribe" };
+        var newSettings = service.Settings with { OpenAiChatModel = "gpt-4o" };
         service.UpdateSettings(newSettings);
 
-        Assert.Equal("gpt-4o-transcribe", service.Settings.OpenAiTranscriptionModel);
+        Assert.Equal("gpt-4o", service.Settings.OpenAiChatModel);
+    }
+
+    // ── Schema 4: aus der Stack-Wahl wird ein Schichtenmodell ─────────────
+
+    private async Task<TestableJsonSettingsService> LoadFromJsonAsync(string json)
+    {
+        await File.WriteAllTextAsync(Path.Combine(_tempDir, "settings.json"), json);
+        var service = new TestableJsonSettingsService(Mock.Of<ILogger<JsonSettingsService>>(), _tempDir);
+        await service.LoadAsync();
+        return service;
+    }
+
+    [Theory]
+    [InlineData("openai", AiService.OpenAi)]
+    [InlineData("claude", AiService.Claude)]
+    public async Task Schema4_MapsTheOldBackendToTheAiService(string legacy, AiService expected)
+    {
+        var service = await LoadFromJsonAsync(
+            "{\"settingsSchema\":3,\"backendProvider\":\"" + legacy + "\"}");
+
+        Assert.Equal(expected, service.Settings.AiService);
+        Assert.Equal(4, service.Settings.SettingsSchema);
+    }
+
+    [Fact]
+    public async Task Schema4_KeepsSmoothingOffWhenItWasOff()
+    {
+        // Wer die Glättung bewusst abgeschaltet hatte, darf sie nicht durchs Update zurückbekommen —
+        // das hieße ungefragt wieder Cloud-Verkehr.
+        var service = await LoadFromJsonAsync(
+            "{\"settingsSchema\":3,\"backendProvider\":\"openai\",\"textSmoothing\":false}");
+
+        Assert.False(service.Settings.TextSmoothing);
+        Assert.Equal(AiService.OpenAi, service.Settings.AiService);
+    }
+
+    [Fact]
+    public async Task Schema4_LegacyLocalTurnsSmoothingOff()
+    {
+        var service = await LoadFromJsonAsync(
+            "{\"settingsSchema\":3,\"backendProvider\":\"local\",\"textSmoothing\":true}");
+
+        Assert.False(service.Settings.TextSmoothing);
+    }
+
+    [Fact]
+    public async Task Schema4_LegacyLocalDoesNotWipeTheOtherSettings()
+    {
+        // Der Wert "local" lässt sich nicht auf AiService abbilden. Würde er trotzdem
+        // deserialisiert, fiele die Datei in den catch und ALLE Einstellungen wären weg.
+        var service = await LoadFromJsonAsync(
+            "{\"settingsSchema\":3,\"backendProvider\":\"local\"," +
+            "\"hotkey\":\"Ctrl+Alt+Space\",\"vocabulary\":[\"Kubernetes\"],\"microphoneDeviceId\":2}");
+
+        Assert.Equal("Ctrl+Alt+Space", service.Settings.Hotkey);
+        Assert.Equal(["Kubernetes"], service.Settings.Vocabulary);
+        Assert.Equal(2, service.Settings.MicrophoneDeviceId);
+    }
+
+    [Fact]
+    public async Task Schema4_WritesTheNewFieldNameAndDropsTheOldOne()
+    {
+        await LoadFromJsonAsync("{\"settingsSchema\":3,\"backendProvider\":\"claude\"}");
+
+        var json = await File.ReadAllTextAsync(Path.Combine(_tempDir, "settings.json"));
+        Assert.Contains("aiService", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("backendProvider", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoadAsync_MissingFile_DefaultsToSmoothingAndPreloadOn()
+    {
+        var service = new TestableJsonSettingsService(Mock.Of<ILogger<JsonSettingsService>>(), _tempDir);
+
+        await service.LoadAsync();
+
+        Assert.True(service.Settings.TextSmoothing);
+        Assert.True(service.Settings.WhisperPreload);
+        Assert.False(service.Settings.WhisperUseGpu);
     }
 }
 

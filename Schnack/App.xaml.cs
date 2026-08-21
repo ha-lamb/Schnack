@@ -63,6 +63,9 @@ public partial class App : Application
     private ILocalizationService? _localization;
     private LoggingLevelSwitch? _logLevelSwitch;
 
+    // Vorladen laeuft im Hintergrund und muss vor der Entsorgung des Providers abgebrochen werden.
+    private CancellationTokenSource? _warmupCts;
+
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -98,6 +101,25 @@ public partial class App : Application
         await _settingsService.LoadAsync();
         ApplyDebugLogLevelFromSettings();
 
+        var secretService = _serviceProvider.GetRequiredService<ISecretService>();
+
+        // Erststart: Nachbearbeitung anhand der vorhandenen Zugangsdaten vorbelegen. Die
+        // Spracherkennung steht ohnehin fest — sie laeuft immer lokal.
+        if (_settingsService.CreatedDefaultSettingsOnLastLoad)
+        {
+            var (autoService, autoSmoothing) = FirstRunDefaults.Choose(
+                secretService.HasOpenAiApiKey(), secretService.HasApiKey());
+
+            _settingsService.UpdateSettings(_settingsService.Settings with
+            {
+                AiService = autoService,
+                TextSmoothing = autoSmoothing
+            });
+            await _settingsService.SaveAsync();
+            _logger.LogInformation("First run: AI service {Service}, smoothing {Smoothing}",
+                autoService, autoSmoothing);
+        }
+
         var settings = _settingsService.Settings;
 
         // Muss vor dem Tray-Aufbau laufen: dessen Menü-Header werden beim Erzeugen festgeschrieben
@@ -119,6 +141,35 @@ public partial class App : Application
         _trayService.UpdateState(RecordingState.Idle);
         _trayService.UpdateFloatingButtonVisibility(false);
 
+        // Eine ohne aktive Glaettung nicht moegliche Diktat-Auswahl auf die naechstbeste klemmen.
+        // Bewusst OHNE SaveAsync: ein voruebergehend fehlender Schluessel soll die
+        // Uebersetzungswahl nicht dauerhaft loeschen.
+        var smoothingActive = SmoothingActive();
+        var storedChoice = DictationChoice.FromSettings(settings);
+        var clampedChoice = DictationChoice.ClampTo(storedChoice, smoothingActive);
+        if (clampedChoice != storedChoice)
+        {
+            _settingsService.UpdateSettings(settings with
+            {
+                DictationLanguage = clampedChoice.Language,
+                DefaultMode = clampedChoice.ModeValue
+            });
+            settings = _settingsService.Settings;
+            _logger.LogInformation("Dictation choice clamped: no smoothing available");
+        }
+
+        // Ohne Modell ist die App funktionslos — dieser Hinweis hat Vorrang vor dem
+        // Glaettungs-Hinweis, weil Windows ohnehin nur den zuletzt gezeigten Ballon anzeigt.
+        if (!_serviceProvider.GetRequiredService<IWhisperModelDownloadService>()
+                .IsModelDownloaded(settings.WhisperModel))
+        {
+            _trayService.ShowBalloonTip(Strings.Error_WhisperModelMissingTitle, Strings.Error_WhisperModelMissing);
+        }
+        else if (settings.TextSmoothing && !secretService.HasKeyFor(settings.AiService))
+        {
+            _trayService.ShowBalloonTip(Strings.Balloon_AppTitle, Strings.Balloon_NoSmoothingWithoutKey);
+        }
+
         _floatingRecordUi = _serviceProvider.GetRequiredService<IFloatingRecordUi>();
         _floatingRecordUi.ToggleRecordingRequested += OnFloatingToggleRecordingRequested;
         _floatingRecordUi.VisibilityChanged += OnFloatingVisibilityChanged;
@@ -128,6 +179,10 @@ public partial class App : Application
         var startupChoice = DictationChoice.FromSettings(settings);
         _orchestrator.CurrentMode = startupChoice.Mode;
         _trayService.UpdateMode(startupChoice);
+
+        // Modell im Hintergrund vorladen: Fire-and-Forget, damit der Start nicht darauf wartet.
+        _warmupCts = new CancellationTokenSource();
+        StartWhisperWarmup();
 
         _hotkeyService = _serviceProvider.GetRequiredService<IHotkeyService>();
         try
@@ -141,18 +196,6 @@ public partial class App : Application
                 Strings.Format(nameof(Strings.Startup_HotkeyFailed), settings.Hotkey));
         }
 
-        // Startup validations
-        var secretService = _serviceProvider.GetRequiredService<ISecretService>();
-        if (secretService.GetApiKey() == null && settings.BackendProvider == BackendProvider.Claude)
-        {
-            _trayService.ShowBalloonTip(Strings.Error_MissingAnthropicKeyTitle, Strings.Error_MissingAnthropicKey);
-        }
-
-        if (secretService.GetOpenAiApiKey() == null && settings.BackendProvider == BackendProvider.OpenAi)
-        {
-            _trayService.ShowBalloonTip(Strings.Error_MissingOpenAiKeyTitle, Strings.Error_MissingOpenAiKey);
-        }
-
         if (_settingsService.CreatedDefaultSettingsOnLastLoad)
             _ = Dispatcher.BeginInvoke(new Action(ShowFirstRunDialog), DispatcherPriority.ApplicationIdle);
 
@@ -161,7 +204,45 @@ public partial class App : Application
         _updateService.BeforeApplyRestart += OnBeforeApplyRestart;
         _ = _updateService.CheckOnStartupAsync();
 
-        _logger.LogInformation("Schnack ready. Mode: {Mode}, Backend: {Backend}", _orchestrator.CurrentMode, settings.BackendProvider);
+        _logger.LogInformation("Schnack ready. Mode: {Mode}, smoothing: {Smoothing}, service: {Service}",
+            _orchestrator.CurrentMode, smoothingActive, settings.AiService);
+    }
+
+    /// <summary>
+    /// Wird unter den aktuellen Einstellungen tatsaechlich geglaettet? Fasst Settings und
+    /// Schluessel-Verfuegbarkeit zusammen, weil beide Seiten die Antwort bestimmen.
+    /// </summary>
+    private bool SmoothingActive()
+    {
+        if (_settingsService == null || _serviceProvider == null)
+            return false;
+
+        var settings = _settingsService.Settings;
+        var secrets = _serviceProvider.GetRequiredService<ISecretService>();
+        return SmoothingPolicy.IsActive(settings, secrets.HasKeyFor(settings.AiService));
+    }
+
+    /// <summary>
+    /// Stoesst das Vorladen des Whisper-Modells an. Scheitert still — der Dienst selbst faengt
+    /// alles ab; hier bleibt nur der Fall, dass die Aufloesung misslingt.
+    /// </summary>
+    private void StartWhisperWarmup()
+    {
+        if (_settingsService?.Settings.WhisperPreload != true || _serviceProvider == null || _warmupCts == null)
+            return;
+
+        var token = _warmupCts.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _serviceProvider.GetRequiredService<IWhisperWarmup>().WarmUpAsync(token);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug("Whisper warmup not started: {Type}", ex.GetType().Name);
+            }
+        }, token);
     }
 
     private void ShowFirstRunDialog()
@@ -265,24 +346,52 @@ public partial class App : Application
     {
         Dispatcher.Invoke(() =>
         {
-            var oldHotkey = _settingsService?.Settings.Hotkey;
-            var oldLanguage = _settingsService?.Settings.UiLanguage;
+            var before = _settingsService?.Settings;
+            var oldHotkey = before?.Hotkey;
+            var oldLanguage = before?.UiLanguage;
+            // Muss VOR dem Dialog festgehalten werden — ein dort gespeicherter Schluessel
+            // veraendert die Settings nicht, ein reiner Settings-Vergleich wuerde ihn uebersehen.
+            var oldSmoothing = SmoothingActive();
             var window = _serviceProvider?.GetRequiredService<SettingsWindow>();
             if (window == null) return;
             window.ShowDialog();
 
-            var newLanguage = _settingsService?.Settings.UiLanguage;
+            var after = _settingsService?.Settings;
+            var newLanguage = after?.UiLanguage;
             if (newLanguage != null && newLanguage != oldLanguage)
                 _localization?.Apply(newLanguage.Value);
 
+            // Hat sich die Verfügbarkeit der Glättung geändert, ändert sich die Optionsliste.
+            // Das Tray-Menü schreibt seine Einträge beim Erzeugen fest und muss dann neu gebaut
+            // werden. Der Vergleich läuft bewusst über den berechneten Zustand statt über die
+            // Settings: das Speichern eines Schlüssels berührt die Settings nicht — und es wird
+            // durch Abbrechen auch nicht zurückgenommen, deshalb steht das hier außerhalb jeder
+            // Speichern-Bedingung. Der Sprachwechsel oben baut das Menü schon neu auf.
+            var newSmoothing = SmoothingActive();
+            if (newSmoothing != oldSmoothing && newLanguage == oldLanguage)
+                _trayService?.RebuildMenu();
+
             // Diktat-Modus kann auch im Dialog geändert worden sein — Tray-Häkchen und Pipeline nachziehen
-            if (_settingsService != null)
+            if (_settingsService != null && after != null)
             {
-                var choice = DictationChoice.FromSettings(_settingsService.Settings);
+                var choice = DictationChoice.ClampTo(DictationChoice.FromSettings(after), newSmoothing);
                 if (_orchestrator != null)
                     _orchestrator.CurrentMode = choice.Mode;
                 _trayService?.UpdateMode(choice);
             }
+
+            // Modell oder GPU-Wahl geändert: die Factory wird verworfen, also erneut vorladen.
+            // Ebenso, wenn im Dialog erst ein Modell heruntergeladen wurde — sonst zahlte das
+            // erste Diktat die Ladezeit.
+            var modelNowAvailable = _serviceProvider != null && after != null &&
+                _serviceProvider.GetRequiredService<IWhisperModelDownloadService>()
+                    .IsModelDownloaded(after.WhisperModel);
+            var reloadNeeded = before != null && after != null &&
+                (before.WhisperModel != after.WhisperModel ||
+                 before.WhisperUseGpu != after.WhisperUseGpu ||
+                 before.WhisperPreload != after.WhisperPreload);
+            if (reloadNeeded || modelNowAvailable)
+                StartWhisperWarmup();
 
             var newHotkey = _settingsService?.Settings.Hotkey;
             if (_hotkeyService != null && newHotkey != null && newHotkey != oldHotkey)
@@ -359,12 +468,18 @@ public partial class App : Application
         services.AddSingleton<IFloatingRecordUi, FloatingRecordUiService>();
         services.AddSingleton<IWhisperModelDownloadService, WhisperModelDownloadService>();
 
-        // Keyed singletons per BackendProvider: "OpenAi" / "Claude"
-        services.AddKeyedSingleton<ITranscriptionService, OpenAiTranscriptionService>(BackendProvider.OpenAi.ToString());
-        services.AddKeyedSingleton<ITranscriptionService, WhisperLocalTranscriptionService>(BackendProvider.Claude.ToString());
+        // Spracherkennung: nur noch eine Implementierung, deshalb ohne Keyed DI.
+        // Die beiden Interfaces zeigen bewusst per Weiterleitung auf DIESELBE Instanz —
+        // zwei Registrierungen hiessen zwei Instanzen und damit das Modell doppelt im Speicher.
+        services.AddSingleton<WhisperLocalTranscriptionService>();
+        services.AddSingleton<ITranscriptionService>(sp => sp.GetRequiredService<WhisperLocalTranscriptionService>());
+        services.AddSingleton<IWhisperWarmup>(sp => sp.GetRequiredService<WhisperLocalTranscriptionService>());
 
-        services.AddKeyedSingleton<IPostProcessingService, OpenAiChatService>(BackendProvider.OpenAi.ToString());
-        services.AddKeyedSingleton<IPostProcessingService, ClaudeService>(BackendProvider.Claude.ToString());
+        // Nachbearbeitung bleibt keyed: der Dienst ist zur Laufzeit umschaltbar, und ohne
+        // Glaettung wird derselbe Auflösungsweg auf den Passthrough gelenkt.
+        services.AddKeyedSingleton<IPostProcessingService, OpenAiChatService>(AiService.OpenAi.ToString());
+        services.AddKeyedSingleton<IPostProcessingService, ClaudeService>(AiService.Claude.ToString());
+        services.AddKeyedSingleton<IPostProcessingService, PassthroughPostProcessingService>(SmoothingPolicy.Passthrough);
 
         services.AddSingleton<IUpdateChecker>(
             _ => new VelopackUpdateChecker(VelopackUpdateService.RepoUrl));
@@ -382,6 +497,13 @@ public partial class App : Application
     private void CleanupAndShutdown()
     {
         _logger?.LogInformation("Schnack shutting down");
+
+        // Muss vor der Entsorgung des Providers geschehen: ein laufendes Vorladen wuerde sonst
+        // auf ein bereits entsorgtes Semaphor treffen.
+        _warmupCts?.Cancel();
+        _warmupCts?.Dispose();
+        _warmupCts = null;
+
         _orchestrator?.Dispose();
         _hotkeyService?.Unregister();
         _floatingRecordUi?.Dispose();

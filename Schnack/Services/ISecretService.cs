@@ -1,3 +1,5 @@
+using Schnack.Models;
+
 namespace Schnack.Services;
 
 public interface ISecretService
@@ -10,4 +12,11 @@ public interface ISecretService
     string? GetOpenAiApiKey();
     void SaveOpenAiApiKey(string apiKey);
     bool HasOpenAiApiKey();
+
+    /// <summary>
+    /// Ist für diesen Dienst ein Schlüssel hinterlegt? Eine Methode statt drei Aufrufer, die
+    /// selbst zwischen den beiden Anbietern unterscheiden — die Frage stellen Pipeline,
+    /// Tray-Menü und Einstellungsdialog gleichermaßen.
+    /// </summary>
+    bool HasKeyFor(AiService service);
 }

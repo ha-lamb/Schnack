@@ -13,7 +13,7 @@ public class JsonSettingsService : ISettingsService
         WriteIndented = true
     };
 
-    private const int CurrentSchema = 3;
+    private const int CurrentSchema = 4;
 
     private readonly SemaphoreSlim _lock = new(1, 1);
     private readonly ILogger<JsonSettingsService> _logger;
@@ -59,11 +59,6 @@ public class JsonSettingsService : ISettingsService
             // wäre die Version sonst fälschlich aktuell. Daher direkt am Roh-JSON prüfen.
             var schema = !JsonHasSettingsSchemaProperty(json) ? 0 : loaded.SettingsSchema;
 
-            if (schema < 2)
-            {
-                // Schema →2: BackendProvider eingeführt; Bestandsnutzer hatten OpenAI-STT
-                loaded = loaded with { BackendProvider = Models.BackendProvider.OpenAi };
-            }
             if (schema < 3)
             {
                 // Schema →3: Sprachen eingeführt, Modi von sprachgebunden auf sprachneutral umgestellt.
@@ -74,6 +69,26 @@ public class JsonSettingsService : ISettingsService
                     UiLanguage = AppLanguage.De,
                     DictationLanguage = AppLanguage.De,
                     DefaultMode = loaded.DefaultMode == "de_to_en" ? "translate" : "correct"
+                };
+            }
+            if (schema < 4)
+            {
+                // Schema →4: Aus der Stack-Wahl wird ein Schichtenmodell. Die Spracherkennung
+                // ist immer lokal; backendProvider benennt nur noch, wer nachbearbeitet.
+                //
+                // Der alte Wert MUSS aus dem Roh-JSON kommen: die Property gibt es in
+                // AppSettings nicht mehr, nach dem Deserialisieren wäre er verloren. Und er
+                // darf NICHT auf AiService gemappt werden — beim alten Wert "local" würfe der
+                // Enum-Konverter, und der catch weiter unten setzte alle Einstellungen zurück.
+                var legacy = ReadLegacyBackendProvider(json);
+
+                loaded = loaded with
+                {
+                    AiService = legacy == "claude" ? AiService.Claude : AiService.OpenAi,
+                    // TextSmoothing bewusst NICHT auf true zwingen: wer die Glättung
+                    // abgeschaltet hatte, bekäme sonst durchs Update wieder Cloud-Verkehr.
+                    // Nur der frühere Stack "local" hatte definitiv keine Nachbearbeitung.
+                    TextSmoothing = legacy == "local" ? false : loaded.TextSmoothing
                 };
             }
 
@@ -124,6 +139,26 @@ public class JsonSettingsService : ISettingsService
             .Equals("de", StringComparison.OrdinalIgnoreCase)
             ? AppLanguage.De
             : AppLanguage.En;
+
+    /// <summary>
+    /// Liest das entfallene Feld backendProvider aus dem Roh-JSON. Liefert null, wenn es fehlt —
+    /// dann bleibt es beim Record-Default.
+    /// </summary>
+    private static string? ReadLegacyBackendProvider(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.TryGetProperty("backendProvider", out var value)
+                   && value.ValueKind == JsonValueKind.String
+                ? value.GetString()
+                : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 
     private static bool JsonHasSettingsSchemaProperty(string json)
     {

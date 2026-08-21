@@ -68,6 +68,52 @@ public class DictationChoiceTests : IDisposable
             DictationChoice.FromSettings(settings));
     }
 
+    // ── Available / ClampTo ────────────────────────────────────────────────
+
+    [Fact]
+    public void Available_WithSmoothing_OffersAllFourUnchanged()
+    {
+        Assert.Equal(DictationChoice.All, DictationChoice.Available(smoothingActive: true));
+    }
+
+    [Fact]
+    public void Available_WithoutSmoothing_DropsEveryTranslation()
+    {
+        // Übersetzt wird ausschließlich vom KI-Dienst — ohne ihn bleiben die Diktiersprachen.
+        Assert.Equal(
+        [
+            new DictationChoice(AppLanguage.De, DictationMode.Correct),
+            new DictationChoice(AppLanguage.En, DictationMode.Correct)
+        ], DictationChoice.Available(smoothingActive: false));
+    }
+
+    [Theory]
+    [MemberData(nameof(AllChoices))]
+    public void ClampTo_WithSmoothing_LeavesEveryChoiceAlone(DictationChoice choice)
+    {
+        Assert.Equal(choice, DictationChoice.ClampTo(choice, smoothingActive: true));
+    }
+
+    [Theory]
+    [MemberData(nameof(AllChoices))]
+    public void ClampTo_WithoutSmoothing_KeepsTheLanguageAndDropsTheTranslation(DictationChoice choice)
+    {
+        var clamped = DictationChoice.ClampTo(choice, smoothingActive: false);
+
+        Assert.Equal(choice.Language, clamped.Language);
+        Assert.Equal(DictationMode.Correct, clamped.Mode);
+    }
+
+    [Theory]
+    [MemberData(nameof(AllChoices))]
+    public void ClampTo_AlwaysYieldsSomethingAvailable(DictationChoice choice)
+    {
+        foreach (var smoothing in new[] { true, false })
+            Assert.Contains(
+                DictationChoice.ClampTo(choice, smoothing),
+                DictationChoice.Available(smoothing));
+    }
+
     public static TheoryData<DictationChoice> AllChoices()
     {
         var data = new TheoryData<DictationChoice>();

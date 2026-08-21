@@ -10,8 +10,8 @@ Nur einmalig nötig, danach per Release-Workflow.
 
 ### 1. GitHub-Repo
 
-- Repo `ha-lamb/Schnack` existiert (aktuell **privat**), Remote ist eingerichtet.
-- **Wichtig:** Der Update-Check in der App läuft anonym — er funktioniert erst, wenn das Repo **public** ist. Release-Upload per Token funktioniert auch mit privatem Repo.
+- Repo `ha-lamb/Schnack` existiert und ist seit 19.08.2026 **public**, Remote ist eingerichtet.
+- Der Update-Check in der App läuft anonym und funktioniert deshalb. Würde das Repo wieder privat gestellt, schlüge er still fehl (nur Warning im Log).
 
 ### 2. `vpk` CLI installieren
 
@@ -47,14 +47,14 @@ Für jeden neuen Release folgende Schritte ausführen:
 
 In `Schnack/Schnack.csproj`:
 ```xml
-<Version>1.4.0</Version>
-<AssemblyMetadata Include="ReleaseDate" Value="2026-05-07" />
+<Version>1.6.0</Version>
+<AssemblyMetadata Include="ReleaseDate" Value="2026-08-21" />
 ```
 
 Commit der Versionsänderung:
 ```pwsh
 git add Schnack/Schnack.csproj
-git commit -m "chore: bump version to 1.4.0"
+git commit -m "chore: bump version to 1.6.0"
 ```
 
 ### 2. Build und Tests prüfen
@@ -83,8 +83,8 @@ Muss grün sein, keine neuen Warnungen.
 
 - Auf `https://github.com/ha-lamb/Schnack/releases` prüfen:
   - `Schnack-win-Setup.exe` angehängt? (vpk-Namenskonvention: mit `win`-Channel)
-  - `Schnack-1.4.0-full.nupkg` angehängt?
-  - Ab dem 2. Release auch `Schnack-1.4.0-delta.nupkg`?
+  - `Schnack-1.6.0-full.nupkg` angehängt?
+  - Ab dem 2. Release auch `Schnack-1.6.0-delta.nupkg`?
 - Ggf. Release-Notes manuell ergänzen.
 
 ### 5. Verteilung (Erstinstallation)
@@ -111,7 +111,7 @@ Muss grün sein, keine neuen Warnungen.
 → `dotnet build` vorher grün? Fehlermeldung genau lesen.
 
 **Update wird auf Test-Rechner nicht erkannt**
-→ Ist das Repo public? Ist der Tag wirklich `v1.4.0` (mit `v` Präfix)?
+→ Ist das Repo public? Ist der Tag wirklich `v1.6.0` (mit `v` Präfix)?
 → GitHub-Release als „Published" gesetzt (nicht „Draft")?
 → Beide Rechner haben Internet-Verbindung zu GitHub?
 
@@ -143,5 +143,5 @@ Muss grün sein, keine neuen Warnungen.
 
 - **Single source of truth:** `<Version>` in `Schnack/Schnack.csproj`.
 - `build-release.ps1` liest die Version automatisch und übergibt sie an `vpk`.
-- GitHub-Release-Tag: `v<version>` (z.B. `v1.4.0`).
+- GitHub-Release-Tag: `v<version>` (z.B. `v1.6.0`).
 - SemVer: `MAJOR.MINOR.PATCH`.

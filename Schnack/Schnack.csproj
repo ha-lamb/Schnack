@@ -12,7 +12,7 @@
     <RootNamespace>Schnack</RootNamespace>
     <ApplicationIcon>Resources\tray-icon.ico</ApplicationIcon>
     <!-- Versionierung: bei jedem Release Version + ReleaseDate aktualisieren -->
-    <Version>1.5.1</Version>
+    <Version>1.6.0</Version>
     <Company>Hauke Lamb</Company>
     <!-- Deutsch liegt in der Haupt-Assembly, Englisch als Satelliten-Assembly (en\Schnack.resources.dll).
          SatelliteResourceLanguages NICHT setzen — das würde Englisch aus dem Publish werfen. -->
@@ -22,7 +22,7 @@
 
   <!-- Veröffentlichungsdatum wird ins Assembly eingebettet und zur Laufzeit gelesen -->
   <ItemGroup>
-    <AssemblyMetadata Include="ReleaseDate" Value="2026-08-20" />
+    <AssemblyMetadata Include="ReleaseDate" Value="2026-08-21" />
   </ItemGroup>
 
   <!-- Interne Helfer (VocabularyPrompt, HttpRetry, …) für die Testsuite sichtbar machen,
@@ -44,6 +44,8 @@
     <PackageReference Include="Velopack" Version="0.0.1298" />
     <PackageReference Include="Whisper.net" Version="1.9.0" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.0" />
+    <!-- Vulkan-Runtime neben der CPU-Runtime: Whisper.net probt beide und faellt selbst zurueck -->
+    <PackageReference Include="Whisper.net.Runtime.Vulkan" Version="1.9.0" />
   </ItemGroup>
 
   <ItemGroup>

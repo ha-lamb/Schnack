@@ -8,8 +8,9 @@ using Schnack.Services;
 namespace Schnack.Tests;
 
 /// <summary>
-/// Prüft, dass die Begriffsliste tatsächlich in beiden ausgehenden Anfragen landet —
-/// im Erkennungs-Prompt und im Nachbearbeitungs-Prompt.
+/// Prüft, dass die Begriffsliste im Nachbearbeitungs-Prompt landet. Ihre zweite Wirkung —
+/// als Vorab-Kontext der lokalen Spracherkennung — deckt VocabularyPromptTests ab; dort ist
+/// sie ohne die native Whisper-Abhängigkeit prüfbar.
 /// </summary>
 public class VocabularyIntegrationTests
 {
@@ -36,70 +37,6 @@ public class VocabularyIntegrationTests
 
         return (new OpenAiChatService(factory.Object, secrets.Object, settings.Object,
             Mock.Of<ILogger<OpenAiChatService>>()), handler);
-    }
-
-    private static (OpenAiTranscriptionService Service, CapturingHandler Handler) BuildSttService(string[] vocabulary)
-    {
-        var handler = new CapturingHandler(new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent("text", Encoding.UTF8, "text/plain")
-        });
-
-        var factory = new Mock<IHttpClientFactory>();
-        factory.Setup(f => f.CreateClient("OpenAi"))
-            .Returns(new HttpClient(handler) { BaseAddress = new Uri("https://api.openai.com/") });
-
-        var secrets = new Mock<ISecretService>();
-        secrets.Setup(s => s.GetOpenAiApiKey()).Returns("test-key");
-
-        var settings = new Mock<ISettingsService>();
-        settings.Setup(s => s.Settings).Returns(new AppSettings { Vocabulary = vocabulary });
-
-        return (new OpenAiTranscriptionService(factory.Object, secrets.Object, settings.Object,
-            Mock.Of<ILogger<OpenAiTranscriptionService>>()), handler);
-    }
-
-    // ── Spracherkennung ─────────────────────────────────────────────
-
-    [Fact]
-    public async Task Transcription_SendsVocabularyInPrompt()
-    {
-        var wav = Path.GetTempFileName();
-        try
-        {
-            await File.WriteAllBytesAsync(wav, new byte[44]);
-            var (sut, handler) = BuildSttService(Terms);
-
-            await sut.TranscribeAsync(wav);
-
-            Assert.Contains("Kubernetes", handler.Body!, StringComparison.Ordinal);
-            Assert.Contains("Krzysztof", handler.Body!, StringComparison.Ordinal);
-            Assert.Contains("Diktat auf Deutsch.", handler.Body!, StringComparison.Ordinal);
-        }
-        finally
-        {
-            if (File.Exists(wav)) File.Delete(wav);
-        }
-    }
-
-    [Fact]
-    public async Task Transcription_EmptyVocabulary_KeepsPlainLanguageHint()
-    {
-        var wav = Path.GetTempFileName();
-        try
-        {
-            await File.WriteAllBytesAsync(wav, new byte[44]);
-            var (sut, handler) = BuildSttService([]);
-
-            await sut.TranscribeAsync(wav);
-
-            Assert.Contains("Diktat auf Deutsch.", handler.Body!, StringComparison.Ordinal);
-            Assert.DoesNotContain("Eigennamen", handler.Body!, StringComparison.Ordinal);
-        }
-        finally
-        {
-            if (File.Exists(wav)) File.Delete(wav);
-        }
     }
 
     // ── Nachbearbeitung ─────────────────────────────────────────────

@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Schnack.Localization;
 using Schnack.Models;
+using Schnack.Services.Internal;
 
 namespace Schnack.Services;
 
@@ -10,6 +12,8 @@ public sealed class DictationOrchestrator : IDictationOrchestrator
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ISettingsService _settingsService;
+    private readonly ISecretService _secretService;
+    private readonly ITranscriptionService _transcriptionService;
     private readonly IRecordingService _recordingService;
     private readonly ITextInsertionService _textInsertionService;
     private readonly ITrayService _trayService;
@@ -22,6 +26,10 @@ public sealed class DictationOrchestrator : IDictationOrchestrator
     private CancellationTokenSource? _pipelineCts;
     private bool _disposed;
 
+    // Ohne Schlüssel läuft die Pipeline still über den Passthrough. Damit der Nutzer nicht
+    // rätselt, warum der Text ungeglättet ankommt, gibt es genau einen Hinweis pro Sitzung.
+    private bool _missingKeyReported;
+
     public DictationMode CurrentMode { get; set; } = DictationMode.Correct;
 
     public RecordingState State => (RecordingState)_recordingState;
@@ -29,6 +37,8 @@ public sealed class DictationOrchestrator : IDictationOrchestrator
     public DictationOrchestrator(
         IServiceProvider serviceProvider,
         ISettingsService settingsService,
+        ISecretService secretService,
+        ITranscriptionService transcriptionService,
         IRecordingService recordingService,
         ITextInsertionService textInsertionService,
         ITrayService trayService,
@@ -37,6 +47,8 @@ public sealed class DictationOrchestrator : IDictationOrchestrator
     {
         _serviceProvider = serviceProvider;
         _settingsService = settingsService;
+        _secretService = secretService;
+        _transcriptionService = transcriptionService;
         _recordingService = recordingService;
         _textInsertionService = textInsertionService;
         _trayService = trayService;
@@ -120,15 +132,26 @@ public sealed class DictationOrchestrator : IDictationOrchestrator
             _trayService.UpdateState(RecordingState.Processing);
             _floatingRecordUi.SetRecordingState(RecordingState.Processing);
 
-            // Auflösung pro Lauf anhand des aktuellen BackendProvider-Settings (Keyed DI,
-            // bewusste Ausnahme von der Konstruktor-Injection — Backend ist zur Laufzeit wechselbar).
-            var backend = _settingsService.Settings.BackendProvider;
-            var transcriptionService = _serviceProvider.GetRequiredKeyedService<ITranscriptionService>(backend.ToString());
-            var postProcessingService = _serviceProvider.GetRequiredKeyedService<IPostProcessingService>(backend.ToString());
+            // Nachbearbeitung pro Lauf auflösen (Keyed DI, bewusste Ausnahme von der
+            // Konstruktor-Injection — Dienst und Glättung sind zur Laufzeit umschaltbar).
+            // Ohne Glättung liefert SmoothingPolicy den Passthrough-Schlüssel; die Auflösung
+            // bleibt dadurch einheitlich, ohne Sonderpfad in der State-Machine.
+            var settings = _settingsService.Settings;
+            var keyAvailable = _secretService.HasKeyFor(settings.AiService);
+            var smoothing = SmoothingPolicy.IsActive(settings, keyAvailable);
+            var postProcessingService = _serviceProvider.GetRequiredKeyedService<IPostProcessingService>(
+                SmoothingPolicy.PostProcessingKey(settings, keyAvailable));
 
-            _logger.LogDebug("Transcription phase, backend: {Backend}", backend);
-            var transcript = await transcriptionService.TranscribeAsync(wavPath, ct);
-            _logger.LogDebug("Transcription finished, empty: {Empty}", string.IsNullOrWhiteSpace(transcript));
+            if (settings.TextSmoothing && !keyAvailable)
+                ReportMissingKeyOnce(settings.AiService);
+
+            _logger.LogDebug("Transcription phase, smoothing: {Smoothing}, service: {Service}",
+                smoothing, settings.AiService);
+            var phaseStarted = Stopwatch.GetTimestamp();
+            var transcript = await _transcriptionService.TranscribeAsync(wavPath, ct);
+            _logger.LogDebug("Transcription finished in {Ms} ms, empty: {Empty}",
+                (long)Stopwatch.GetElapsedTime(phaseStarted).TotalMilliseconds,
+                string.IsNullOrWhiteSpace(transcript));
 
             if (string.IsNullOrWhiteSpace(transcript))
             {
@@ -137,7 +160,17 @@ public sealed class DictationOrchestrator : IDictationOrchestrator
             }
 
             _logger.LogDebug("Post-processing phase");
-            var result = await postProcessingService.ProcessAsync(transcript, CurrentMode, ct);
+            phaseStarted = Stopwatch.GetTimestamp();
+            // Effektiver Modus aus den Settings ableiten statt aus der mutablen CurrentMode-
+            // Property: ohne Glättung kann niemand übersetzen, und die Property wird von drei
+            // Stellen gesetzt — ein vergessener Pfad hieße sonst still nicht übersetzt.
+            var effectiveMode = smoothing
+                ? DictationChoice.FromSettings(settings).Mode
+                : DictationMode.Correct;
+            var result = await postProcessingService.ProcessAsync(transcript, effectiveMode, ct);
+            _logger.LogDebug("Post-processing finished in {Ms} ms",
+                (long)Stopwatch.GetElapsedTime(phaseStarted).TotalMilliseconds);
+
             _logger.LogDebug("Text insertion phase");
             if (_cachedTargetHwnd == 0)
             {
@@ -182,6 +215,17 @@ public sealed class DictationOrchestrator : IDictationOrchestrator
             _trayService.UpdateState(RecordingState.Idle);
             _floatingRecordUi.SetRecordingState(RecordingState.Idle);
         }
+    }
+
+    /// <summary>Einmal pro Sitzung darauf hinweisen, dass ohne Schlüssel nicht geglättet wird.</summary>
+    private void ReportMissingKeyOnce(AiService service)
+    {
+        if (_missingKeyReported)
+            return;
+        _missingKeyReported = true;
+
+        _logger.LogWarning("Smoothing requested but no key for {Service}; inserting raw text", service);
+        _trayService.ShowBalloonTip(Strings.Balloon_AppTitle, Strings.Balloon_NoSmoothingWithoutKey);
     }
 
     private void ShowErrorBalloon(SchnackError code)

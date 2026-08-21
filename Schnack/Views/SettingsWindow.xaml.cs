@@ -16,20 +16,15 @@ public partial class SettingsWindow : Window
         DataContext = viewModel;
     }
 
-    private void OnSaveAnthropicApiKeyClick(object sender, RoutedEventArgs e)
+    // Der Zugriff auf die PasswordBox erfolgt ausschliesslich aus ihrem eigenen Click-Handler.
+    // Das ist wichtig: WPF erzeugt den Inhalt eines Reiters erst bei dessen erster Auswahl —
+    // ein Zugriff von aussen (etwa beim Speichern) liefe auf null.
+    private void OnSaveApiKeyClick(object sender, RoutedEventArgs e)
     {
-        var key = AnthropicApiKeyBox.Password;
+        var key = ApiKeyBox.Password;
         if (!string.IsNullOrWhiteSpace(key))
             ViewModel.SaveApiKeyCommand.Execute(key);
-        AnthropicApiKeyBox.Clear();
-    }
-
-    private void OnSaveOpenAiApiKeyClick(object sender, RoutedEventArgs e)
-    {
-        var key = OpenAiApiKeyBox.Password;
-        if (!string.IsNullOrWhiteSpace(key))
-            ViewModel.SaveOpenAiApiKeyCommand.Execute(key);
-        OpenAiApiKeyBox.Clear();
+        ApiKeyBox.Clear();
     }
 
     private void OnSaveClick(object sender, RoutedEventArgs e) => CommitAndClose();

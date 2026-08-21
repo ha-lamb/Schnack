@@ -13,14 +13,22 @@ Internes Windows-11-Tray-Tool (.NET 10 / WPF) für persönliche Nutzung. Nimmt g
 
 Die vier Optionen sind intern die Kombinationen aus `DictationLanguage` × `DictationMode` (`Correct`/`Translate`), gebündelt in `Models/DictationChoice.cs` — **die einzige Quelle** für Tray-Menü und Einstellungen, damit beide nicht auseinanderlaufen. Jede Kombination hat einen eigenen Prompt in `DictationPrompts`. Die Auswahl wird sofort persistiert (Tray wie Dialog), weil die Services die Diktiersprache pro Lauf aus den Settings lesen.
 
-**Zwei Backend-Stacks** (Nutzer wählt einen in den Einstellungen — Entweder-oder, kein Mischbetrieb):
+**Zwei Schichten, kein Stack-Wechsel.** Das ist die tragende Struktur — wer sie als „Backend-Wahl" missversteht, baut die Oberfläche falsch:
 
-| Backend | STT (Audio → Text) | Textverarbeitung | Privacy |
-|---------|--------------------|--------------------|---------|
-| **OpenAI** | OpenAI `v1/audio/transcriptions` (Cloud) | OpenAI `v1/chat/completions` (Cloud) | Audio + Transkript gehen an OpenAI |
-| **Claude** | Whisper.net **lokal** | Anthropic `v1/messages` (Cloud) | Audio bleibt lokal, nur Transkript geht an Anthropic |
+| Schicht | Wer | Privacy |
+|---------|-----|---------|
+| **Spracherkennung** | Whisper.net **lokal**, immer | nichts verlässt das Gerät |
+| **Nachbearbeitung** (optional) | OpenAI `v1/chat/completions` **oder** Anthropic `v1/messages` | nur das Transkript geht an den gewählten Dienst |
 
-**Default-Backend bei Erststart:** OpenAI (kein Whisper-Modell-Download nötig, schneller einsatzbereit). Backend-Wechsel wirkt ab dem nächsten Pipeline-Lauf ohne App-Neustart (Keyed-DI-Auflösung pro Lauf).
+Eine Cloud-Spracherkennung gibt es nicht mehr — sie war mit Vulkan langsamer als lokal und weniger privat.
+
+**Der Schalter `TextSmoothing` („Text glätten")** entscheidet, ob die zweite Schicht läuft. Aus oder ohne hinterlegten Schlüssel: der Rohtext der Erkennung wird eingefügt. Die Regel steht an genau einer Stelle — `Services/Internal/SmoothingPolicy.cs` — und lautet `TextSmoothing && keyAvailable`. Sie wird von Pipeline, Tray-Menü und Einstellungsdialog gleichermaßen gestellt.
+
+**Übersetzt wird ausschließlich vom KI-Dienst.** Ohne aktive Glättung bietet `DictationChoice.Available` deshalb nur die beiden reinen Diktiersprachen an. Whisper übersetzt nicht selbst (siehe „Lokale Spracherkennung: Leistung und Grenzen").
+
+**Erststart** (`Services/Internal/FirstRunDefaults.cs`): OpenAI-Schlüssel → OpenAI mit Glättung, sonst Anthropic-Schlüssel → Claude mit Glättung, sonst Glättung aus. Ein fehlender Schlüssel braucht **keinen** Rückfallmechanismus mehr — `SmoothingPolicy` wertet die Verfügbarkeit bei jedem Lauf neu aus.
+
+Dienst- und Glättungswechsel wirken ab dem nächsten Pipeline-Lauf ohne App-Neustart (Keyed-DI-Auflösung pro Lauf).
 
 **Kein kommerzielles Produkt.** Kein Enterprise-Rollout. Kein Mehrbenutzer-Setup.
 
@@ -30,10 +38,9 @@ Die vier Optionen sind intern die Kombinationen aus `DictationLanguage` × `Dict
 - **WPF-Tray:** `H.NotifyIcon.Wpf` (kein Mischen mit WinForms-NotifyIcon)
 - **Globaler Hotkey:** `NHotkey.Wpf` (Default `Ctrl+Alt+S`)
 - **Audio-Aufnahme:** `NAudio` (16 kHz mono PCM WAV)
-- **STT (OpenAI-Backend):** `HttpClient` + `IHttpClientFactory` gegen `v1/audio/transcriptions`. Kein OpenAI-SDK.
-- **STT (Claude-Backend):** `Whisper.net` + `Whisper.net.Runtime` (CPU). Modelle in `%APPDATA%\Schnack\models\`, Download via `IWhisperModelDownloadService` aus `huggingface.co/ggerganov/whisper.cpp`.
-- **Postprocessing (Claude-Backend):** `HttpClient` gegen Anthropic `v1/messages`. Kein Anthropic-SDK.
-- **Postprocessing (OpenAI-Backend):** `HttpClient` gegen OpenAI `v1/chat/completions`. Gleiches Interface (`IPostProcessingService`).
+- **STT:** `Whisper.net` + `Whisper.net.Runtime` (CPU) + `Whisper.net.Runtime.Vulkan` (GPU, optional über `WhisperUseGpu`). Modelle in `%APPDATA%\Schnack\models\`, Download via `IWhisperModelDownloadService` aus `huggingface.co/ggerganov/whisper.cpp`.
+- **Nachbearbeitung (Claude):** `HttpClient` gegen Anthropic `v1/messages`. Kein Anthropic-SDK.
+- **Nachbearbeitung (OpenAI):** `HttpClient` gegen OpenAI `v1/chat/completions`. Gleiches Interface (`IPostProcessingService`).
 - **Installer + Auto-Update:** `Velopack` (NuGet) + `vpk` CLI. Updates via GitHub Releases.
 - **DI:** `Microsoft.Extensions.DependencyInjection` (inkl. Keyed Services für die Backend-Wahl)
 - **Logging:** `Microsoft.Extensions.Logging` + Serilog File-Sink (`Serilog.Sinks.File`)
@@ -67,7 +74,7 @@ API-Keys können alternativ über die Settings-UI hinterlegt werden — werden d
 ## Architektur-Überblick
 
 - **`App.xaml.cs`**: eigene `Main()` (Velopack-Bootstrap), Single-Instance-Mutex, DI-Container, Serilog-Setup, Event-Wiring zwischen Tray/Hotkey/Floating-Button und dem Orchestrator, Fenster-Dialoge, Cleanup.
-- **`Services/DictationOrchestrator.cs`** (`IDictationOrchestrator`): kapselt die State-Machine `Idle ⇄ Recording ⇄ Processing` (thread-safe via `Interlocked.CompareExchange`) und die Pipeline Aufnahme → Transkription → Postprocessing → Texteinfügung. Löst `ITranscriptionService`/`IPostProcessingService` pro Lauf per Keyed DI anhand `BackendProvider` auf (bewusste Ausnahme von der Konstruktor-Injection, damit der Backend-Wechsel ohne Neustart wirkt). Cacht das Ziel-HWND beim Aufnahme-Start.
+- **`Services/DictationOrchestrator.cs`** (`IDictationOrchestrator`): kapselt die State-Machine `Idle ⇄ Recording ⇄ Processing` (thread-safe via `Interlocked.CompareExchange`) und die Pipeline Aufnahme → Transkription → Postprocessing → Texteinfügung. Löst den `IPostProcessingService` pro Lauf per Keyed DI über `SmoothingPolicy.PostProcessingKey` auf (bewusste Ausnahme von der Konstruktor-Injection, damit Dienst- und Glättungswechsel ohne Neustart wirken). Den effektiven Diktat-Modus leitet er aus Settings und Glättungszustand ab, nicht aus der mutablen `CurrentMode`-Property. Cacht das Ziel-HWND beim Aufnahme-Start.
 - **Bedienpfade:** Hotkey und schwebender Button (beide rufen `ToggleRecordingAsync` mit dem aktuellen Foreground-HWND). Das Tray-Menü bietet bewusst **keine** Aufnahme-Steuerung — Win32-Foreground-Tracking durch Tray-Menü-Interaktion ist unzuverlässig; stattdessen steht dort ein Hinweis-Eintrag.
 
 ## Kritische Architekturregeln (verletzungssicher)
@@ -123,7 +130,7 @@ Der Arbeitsbereich kommt bewusst vom Monitor unter dem Cursor (`MonitorFromPoint
 
 ### HTTP-Client-Konventionen
 
-- Alle drei HTTP-Services (`OpenAiTranscriptionService`, `OpenAiChatService`, `ClaudeService`) nutzen `IHttpClientFactory` mit named clients (`"OpenAi"`, `"Claude"`).
+- Beide HTTP-Services (`OpenAiChatService`, `ClaudeService`) nutzen `IHttpClientFactory` mit named clients (`"OpenAi"`, `"Claude"`).
 - **Retry-Logik zentral** in `Services/Internal/HttpRetry.cs`: 3 Attempts, exponential backoff 250/500/1000 ms. Retry nur bei `RequestTimeout`, 5xx-Transienten (`InternalServerError`, `BadGateway`, `ServiceUnavailable`, `GatewayTimeout`) und `TaskCanceledException` (ohne echte Cancellation). **Niemals** bei 401/403/429 — direkt freundliche Fehlermeldung.
 - **Fehler-Logging zentral** in `Services/Internal/ApiErrorLog.cs` (sanitisiert).
 - JSON: Anthropic + OpenAI erwarten **snake_case**. Maßgeblich sind die `[JsonPropertyName]`-Attribute an allen DTO-Properties; als konsistentes Fallback steht die Policy überall auf `JsonNamingPolicy.SnakeCaseLower`. Neue DTO-Properties bekommen immer ein Attribut.
@@ -131,9 +138,18 @@ Der Arbeitsbereich kommt bewusst vom Monitor unter dem Cursor (`MonitorFromPoint
 ### Settings & Schema-Migration
 
 - `AppSettings` ist ein `record` mit `with`-Updates. Persistenz: `%APPDATA%\Schnack\settings.json`.
-- **Schema-Versionierung** über `SettingsSchema` (aktuell **3**). Schema 2 brachte `BackendProvider`, Schema 3 die Sprachen (`UiLanguage`, `DictationLanguage`) und sprachneutrale Modi (`de_correct`/`de_to_en` → `correct`/`translate`).
+- **Schema-Versionierung** über `SettingsSchema` (aktuell **4**). Schema 2 brachte die Backend-Wahl, Schema 3 die Sprachen und sprachneutrale Modi, Schema 4 den Wechsel von der Stack-Wahl zum Schichtenmodell (`backendProvider` → `aiService` + `TextSmoothing`).
+- **Schema 4 liest den alten Wert aus dem Roh-JSON** (`ReadLegacyBackendProvider`), weil `backendProvider` in `AppSettings` nicht mehr existiert. Das neue Feld heißt bewusst anders: ein `[JsonPropertyName("backendProvider")]` auf `AiService` würfe beim alten Wert `"local"`, und der `catch` in `LoadAsync` setzte daraufhin **alle** Einstellungen auf Default zurück — stillschweigend.
 - Die Migration ist eine Kaskade aus `if (schema < N)`-Blöcken; **zurückgeschrieben wird einmal am Ende**, wenn `schema < CurrentSchema`. Bei neuen Feldern: Default in `AppSettings` setzen und Test in `JsonSettingsServiceTests` nachziehen. `CurrentSchema` **nur** erhöhen, wenn bestehende Werte umgeschrieben werden müssen — rein additive Felder erhalten in alten Dateien automatisch den Record-Default.
 - Bestandsnutzer bleiben bei der Migration bewusst auf Deutsch; nur Neuinstallationen übernehmen die Windows-Sprache.
+
+### Lokale Spracherkennung: Leistung und Grenzen
+
+- **Runtime-Wahl** über `RuntimeOptions.RuntimeLibraryOrder` (statisch, `Whisper.net.LibraryLoader`), gesetzt in `GetOrCreateFactoryAsync` **unmittelbar vor** `WhisperFactory.FromPath` — nicht im Startup, wo die Settings teils noch nicht geladen sind. Whisper.net probt die Liste der Reihe nach und fällt selbsttätig zurück; ein eigener try/catch-Fallback wäre schädliche Doppelung. `RuntimeOptions.LoadedLibrary` verrät danach, welche Runtime tatsächlich gewonnen hat — wird geloggt.
+- **Gemessen (RTX 5070 Ti, large-v3-turbo, 26,9 s Audio):** CPU 6757 ms, Vulkan 295 ms — Faktor 23 bei wortgleichem Transkript. Vulkan ist deshalb die Empfehlung, bleibt aber optional, weil die Wirkung treiberabhängig ist.
+- **`useGpu` gehört in den Cache-Schlüssel der Factory**, sonst wirkt die Umschaltung erst nach Neustart.
+- **Vorladen** (`WhisperPreload`, Default an) lädt beim Start das Modell **und** rechnet eine Sekunde Stille durch. Der zweite Teil ist der wichtigere: er erzwingt Graph-Allokation und Shader-Übersetzung. Gemessen: 4749 ms, die sonst das erste Diktat bezahlt. Fire-and-Forget, scheitert still; der `CancellationTokenSource` wird in `CleanupAndShutdown` **vor** der Entsorgung des Providers gecancelt, sonst läuft der Warmup in ein entsorgtes Semaphor.
+- **Whisper übersetzt nicht** — bewusste Entscheidung, nicht Unvermögen der Bibliothek. Zwei gemessene Gründe: `large-v3-turbo` (das Standardmodell) ignoriert das Translate-Flag und liefert still die Quellsprache, während dieselbe Aufnahme mit `base` sauber übersetzt; und Whisper kann grundsätzlich **nur ins Englische**. Eine Übersetzungsoption, die je nach Modell wirkt oder nicht und nur in eine Richtung geht, ist schlechter als keine. Übersetzt wird deshalb ausschließlich vom KI-Dienst.
 
 ### Vokabular
 
@@ -141,6 +157,7 @@ Der Arbeitsbereich kommt bewusst vom Monitor unter dem Cursor (`MonitorFromPoint
 - Die Formulierungen dort sind **funktionale Prompts, keine UI-Texte** — sie gehören nicht in die `.resx`, sondern folgen der Sprache des jeweiligen Prompt-Templates.
 - Im lokalen Whisper-Pfad zusätzlich `WithCarryInitialPrompt(true)`, sonst wirkt die Liste nur im ersten 30-Sekunden-Fenster.
 - **Begriffe nie im Klartext loggen** — nur ihre Anzahl.
+- **Ohne Glättung wirkt das Vokabular nur einfach** (als Vorab-Kontext der Erkennung); die Schreibvorgabe im Nachbearbeitungs-Prompt entfällt mit dem Schritt, der sie ausgewertet hätte.
 
 ### Logo und Icons
 
@@ -167,7 +184,7 @@ Der Arbeitsbereich kommt bewusst vom Monitor unter dem Cursor (`MonitorFromPoint
 
 - **File-scoped namespaces**, **Nullable enabled**.
 - **`async`/`await` durchgängig**, `CancellationToken` als letzter Parameter.
-- **Konstruktor-Injection** für alle Services. Einzige dokumentierte Ausnahme: Keyed-Auflösung der Backend-Services im `DictationOrchestrator`.
+- **Konstruktor-Injection** für alle Services. Einzige dokumentierte Ausnahme: die Keyed-Auflösung des `IPostProcessingService` im `DictationOrchestrator` — der Dienst ist zur Laufzeit umschaltbar. Die Spracherkennung wird normal injiziert, seit es nur noch eine gibt.
 - **Records** für DTOs. **`sealed`** für Service-Implementierungen (Ausnahme `JsonSettingsService` — Test-Subklasse, kommentiert).
 - **Knappe Kommentare** an P/Invoke-Stellen, Threading-Workarounds und nicht-offensichtlichen Algorithmen. Keine XML-Docs an trivialen Methoden.
 
@@ -188,13 +205,16 @@ C:\Dropbox\Cowork\Schnack\
 │  ├─ Schnack.csproj            net10.0-windows, x64, Version + ReleaseDate
 │  ├─ App.xaml / App.xaml.cs    Main(), Velopack, DI, Mutex, Event-Wiring
 │  ├─ Services/
-│  │  ├─ Internal/              HttpRetry, ApiErrorLog, IUpdateChecker/VelopackUpdateChecker
+│  │  ├─ Internal/              HttpRetry, ApiErrorLog, IUpdateChecker/VelopackUpdateChecker,
+│  │  │                        SmoothingPolicy (Glättungsregel + Keyed-Schlüssel),
+│  │  │                        FirstRunDefaults (Vorbelegung beim Erststart)
 │  │  ├─ IDictationOrchestrator / DictationOrchestrator   State-Machine + Pipeline
 │  │  ├─ ILocalizationService / LocalizationService       Sprachwechsel zur Laufzeit
 │  │  ├─ ITrayService / TrayService
 │  │  ├─ IRecordingService / NAudioRecordingService
-│  │  ├─ ITranscriptionService  → OpenAiTranscriptionService | WhisperLocalTranscriptionService
-│  │  ├─ IPostProcessingService → OpenAiChatService | ClaudeService
+│  │  ├─ ITranscriptionService  → WhisperLocalTranscriptionService (einzige Implementierung)
+│  │  ├─ IPostProcessingService → OpenAiChatService | ClaudeService | PassthroughPostProcessingService
+│  │  ├─ IWhisperWarmup         Vorladen, nur von WhisperLocalTranscriptionService implementiert
 │  │  ├─ ITextInsertionService / TextInsertionService
 │  │  ├─ IHotkeyService / HotkeyService
 │  │  ├─ ISettingsService / JsonSettingsService
@@ -208,7 +228,7 @@ C:\Dropbox\Cowork\Schnack\
 │  ├─ Views/                    SettingsWindow, AboutWindow, FirstRunWindow, FloatingRecordWindow
 │  ├─ Commands/RelayCommand.cs
 │  ├─ Localization/             Strings.resx (de), Strings.en.resx, Strings.cs (Zugriff)
-│  ├─ Models/                   AppSettings, AppLanguage, BackendProvider, DictationMode,
+│  ├─ Models/                   AppSettings, AppLanguage, AiService, DictationMode,
 │  │                            DictationChoice (die vier Diktat-Optionen),
 │  │                            RecordingState, SchnackError/SchnackException
 │  │  ├─ Claude/                Anthropic Request/Response-DTOs
@@ -272,7 +292,9 @@ Laufzeit-Pfade (NICHT im Repo):
 
 ## Out of Scope (dauerhaft)
 
-- Hybrid-Backend-Modi (z.B. OpenAI-STT + Claude-Postprocessing). Nutzer wählt einen kompletten Stack.
+- Cloud-Spracherkennung. Sie wurde 08/2026 entfernt: lokal ist mit Vulkan schneller und privater.
+- Lokales Sprachmodell für Glättung/Übersetzung ohne Cloud (Ollama o.ä.). Ohne Glättung bleibt es beim Rohtext.
+- Übersetzung durch Whisper selbst — siehe „Lokale Spracherkennung: Leistung und Grenzen".
 - Streaming-STT, Voice Activity Detection, Auto-Stop bei Stille, Live-Vorschau.
 - Weitere Sprachen als Deutsch und Englisch; automatische Spracherkennung des Diktats.
 - Weitere Modi außer `Correct` und `Translate`.

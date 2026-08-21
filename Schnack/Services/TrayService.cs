@@ -18,6 +18,10 @@ public sealed class TrayService : ITrayService
 {
     private readonly ILogger<TrayService> _logger;
     private readonly ISettingsService _settings;
+    // Die verfügbaren Diktat-Optionen hängen daran, ob ein Schlüssel hinterlegt ist. Bewusst
+    // der Dienst statt eines durchgereichten Bools: sonst hinge jeder spätere RebuildMenu an
+    // einem Stand von vor Minuten.
+    private readonly ISecretService _secrets;
     private TaskbarIcon? _taskbarIcon;
     private readonly Dictionary<DictationChoice, MenuItem> _choiceItems = [];
     private MenuItem? _floatingItem;
@@ -38,10 +42,11 @@ public sealed class TrayService : ITrayService
     public event EventHandler? CheckForUpdatesRequested;
     public event EventHandler? ExitRequested;
 
-    public TrayService(ILogger<TrayService> logger, ISettingsService settings)
+    public TrayService(ILogger<TrayService> logger, ISettingsService settings, ISecretService secrets)
     {
         _logger = logger;
         _settings = settings;
+        _secrets = secrets;
     }
 
     public void Initialize()
@@ -90,7 +95,10 @@ public sealed class TrayService : ITrayService
         };
 
         _choiceItems.Clear();
-        foreach (var choice in DictationChoice.All)
+        // Ohne aktive Glättung übersetzt niemand — dann nur die reinen Diktiersprachen zeigen.
+        var settings = _settings.Settings;
+        var smoothing = SmoothingPolicy.IsActive(settings, _secrets.HasKeyFor(settings.AiService));
+        foreach (var choice in DictationChoice.Available(smoothing))
         {
             var item = new MenuItem
             {

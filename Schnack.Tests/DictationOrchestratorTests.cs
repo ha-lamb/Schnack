@@ -1,8 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Schnack.Localization;
 using Schnack.Models;
 using Schnack.Services;
+using Schnack.Services.Internal;
 
 namespace Schnack.Tests;
 
@@ -16,18 +18,27 @@ public class DictationOrchestratorTests
     private readonly Mock<ITranscriptionService> _transcription = new();
     private readonly Mock<IPostProcessingService> _postProcessing = new();
 
-    private DictationOrchestrator CreateSut()
+    private readonly Mock<IPostProcessingService> _passthrough = new();
+    private readonly Mock<ISecretService> _secrets = new();
+
+    private DictationOrchestrator CreateSut(AppSettings? settings = null, bool keyAvailable = true)
     {
-        _settings.Setup(s => s.Settings).Returns(new AppSettings()); // Default: BackendProvider.OpenAi
+        _settings.Setup(s => s.Settings).Returns(settings ?? new AppSettings()); // Default: OpenAi + Glättung
+        _secrets.Setup(s => s.HasKeyFor(It.IsAny<AiService>())).Returns(keyAvailable);
 
         var services = new ServiceCollection();
-        services.AddKeyedSingleton(BackendProvider.OpenAi.ToString(), _transcription.Object);
-        services.AddKeyedSingleton(BackendProvider.OpenAi.ToString(), _postProcessing.Object);
+        services.AddKeyedSingleton(AiService.OpenAi.ToString(), _postProcessing.Object);
+        services.AddKeyedSingleton(AiService.Claude.ToString(), _postProcessing.Object);
+        // Getrenntes Mock unter dem Passthrough-Schlüssel, damit sichtbar wird, welcher der
+        // beiden Wege tatsächlich gegangen wurde.
+        services.AddKeyedSingleton(SmoothingPolicy.Passthrough, _passthrough.Object);
         var provider = services.BuildServiceProvider();
 
         return new DictationOrchestrator(
             provider,
             _settings.Object,
+            _secrets.Object,
+            _transcription.Object,
             _recording.Object,
             _textInsertion.Object,
             _tray.Object,
@@ -91,6 +102,50 @@ public class DictationOrchestratorTests
 
         Assert.Equal(RecordingState.Idle, sut.State);
         _textInsertion.Verify(t => t.InsertTextAsync((nint)123, "Hallo Welt.", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Pipeline_WithoutSmoothing_UsesThePassthroughAndNotTheAiService()
+    {
+        var settings = new AppSettings { TextSmoothing = false };
+        _recording.Setup(r => r.StopRecording()).Returns("nonexistent-rec.wav");
+        _transcription.Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("roher text ohne glaettung");
+        _passthrough.Setup(p => p.ProcessAsync(It.IsAny<string>(), It.IsAny<DictationMode>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string t, DictationMode _, CancellationToken _) => new ClaudeProcessResult(t, false));
+        var sut = CreateSut(settings);
+
+        await sut.ToggleRecordingAsync(123);
+        await sut.ToggleRecordingAsync(123);
+
+        _textInsertion.Verify(t => t.InsertTextAsync((nint)123, "roher text ohne glaettung", It.IsAny<CancellationToken>()), Times.Once);
+        _postProcessing.Verify(
+            p => p.ProcessAsync(It.IsAny<string>(), It.IsAny<DictationMode>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task Pipeline_SmoothingWantedButNoKey_FallsBackToPassthroughAndWarnsOnce()
+    {
+        // Der Nutzer will glätten, aber es liegt kein Schlüssel vor: Rohtext plus genau ein Hinweis.
+        var settings = new AppSettings { TextSmoothing = true };
+        _recording.Setup(r => r.StopRecording()).Returns("nonexistent-rec.wav");
+        _transcription.Setup(t => t.TranscribeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("rohtext ohne schluessel");
+        _passthrough.Setup(p => p.ProcessAsync(It.IsAny<string>(), It.IsAny<DictationMode>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string t, DictationMode _, CancellationToken _) => new ClaudeProcessResult(t, false));
+        var sut = CreateSut(settings, keyAvailable: false);
+
+        await sut.ToggleRecordingAsync(123);
+        await sut.ToggleRecordingAsync(123);
+        // Zweiter Lauf: der Hinweis darf sich nicht wiederholen.
+        await sut.ToggleRecordingAsync(456);
+        await sut.ToggleRecordingAsync(456);
+
+        _postProcessing.Verify(
+            p => p.ProcessAsync(It.IsAny<string>(), It.IsAny<DictationMode>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _tray.Verify(t => t.ShowBalloonTip(It.IsAny<string>(), Strings.Balloon_NoSmoothingWithoutKey), Times.Once);
     }
 
     // Diese Zuordnung lief früher über deutsche Exception-Texte und brach still bei Übersetzung.

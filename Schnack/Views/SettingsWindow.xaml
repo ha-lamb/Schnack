@@ -4,7 +4,7 @@
         xmlns:local="clr-namespace:Schnack.Views"
         xmlns:loc="clr-namespace:Schnack.Localization"
         Title="{x:Static loc:Strings.Settings_Title}"
-        Height="760" Width="540"
+        Height="560" Width="560"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize">
@@ -13,225 +13,267 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <local:BoolToBrushConverter x:Key="ApiKeyStatusBrushConverter"
                                     TrueBrush="Green" FalseBrush="OrangeRed"/>
+
+        <!-- Gemeinsame Stile: ein Ort für Abstände, Größen und Farben, damit die Reiter
+             nicht auseinanderlaufen. Vorher lag all das verstreut an den Elementen. -->
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <Style x:Key="Hint" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#666"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,4,0,0"/>
+        </Style>
+
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,12,10"/>
+        </Style>
+
+        <Style x:Key="FieldLabelTop" TargetType="TextBlock" BasedOn="{StaticResource FieldLabel}">
+            <Setter Property="VerticalAlignment" Value="Top"/>
+            <Setter Property="Margin" Value="0,2,12,10"/>
+        </Style>
+
+        <Style TargetType="ComboBox">
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+
+        <Style TargetType="TextBox">
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+
+        <Style x:Key="TabBody" TargetType="StackPanel">
+            <Setter Property="Margin" Value="16,14,16,16"/>
+        </Style>
     </Window.Resources>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="20">
-
-            <!-- ── Backend-Auswahl ─────────────────────────────────── -->
-            <TextBlock Text="{x:Static loc:Strings.Settings_Backend}" FontWeight="SemiBold" Margin="0,0,0,6"/>
-            <Border BorderBrush="#DDD" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,14">
-                <StackPanel>
-                    <RadioButton Content="{x:Static loc:Strings.Settings_BackendOpenAi}"
-                                 IsChecked="{Binding IsOpenAiBackend}"
-                                 Margin="0,0,0,4"/>
-                    <RadioButton Content="{x:Static loc:Strings.Settings_BackendClaude}"
-                                 IsChecked="{Binding IsClaudeBackend}"/>
-                </StackPanel>
-            </Border>
-
-            <!-- ── OpenAI-Backend-Einstellungen ──────────────────── -->
-            <StackPanel Visibility="{Binding IsOpenAiBackend, Converter={StaticResource BoolToVis}}">
-                <TextBlock Text="{x:Static loc:Strings.Settings_OpenAiSection}" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                <Grid Margin="0,0,0,14">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="200"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static loc:Strings.Settings_SttModel}" VerticalAlignment="Center" Margin="0,0,0,10"/>
-                    <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,10"
-                              ItemsSource="{Binding OpenAiSttModelOptions}"
-                              SelectedItem="{Binding OpenAiTranscriptionModel}"/>
-
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{x:Static loc:Strings.Settings_ChatModel}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="1" Grid.Column="1"
-                             Text="{Binding OpenAiChatModel, UpdateSourceTrigger=PropertyChanged}"/>
-                </Grid>
+    <DockPanel>
+        <!-- Fußbereich außerhalb der Reiter: er darf nicht mitscrollen -->
+        <Border DockPanel.Dock="Bottom" Background="#F5F5F5" BorderBrush="#DDD" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="16,10">
+                <Button Content="{x:Static loc:Strings.Common_Cancel}" Width="90" Margin="0,0,8,0"
+                        IsCancel="True" Click="OnCancelClick"/>
+                <Button Content="{x:Static loc:Strings.Common_Save}" Width="90"
+                        IsDefault="True" Click="OnSaveClick"/>
             </StackPanel>
+        </Border>
 
-            <!-- ── Claude-Backend-Einstellungen ──────────────────── -->
-            <StackPanel Visibility="{Binding IsClaudeBackend, Converter={StaticResource BoolToVis}}">
-                <TextBlock Text="{x:Static loc:Strings.Settings_ClaudeSection}" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                <Grid Margin="0,0,0,10">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="200"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+        <TabControl Margin="8">
 
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static loc:Strings.Settings_ClaudeModel}" VerticalAlignment="Center" Margin="0,0,0,10"/>
-                    <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,10"
-                             Text="{Binding ClaudeModel, UpdateSourceTrigger=PropertyChanged}"/>
+            <!-- ══ Spracherkennung ══════════════════════════════════════ -->
+            <TabItem Header="{x:Static loc:Strings.Settings_TabSpeech}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Style="{StaticResource TabBody}">
+                        <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,14"
+                                   Text="{x:Static loc:Strings.Settings_SpeechIntro}"/>
 
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{x:Static loc:Strings.Settings_MaxTokens}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="1" Grid.Column="1"
-                             Text="{Binding ClaudeMaxTokens, UpdateSourceTrigger=PropertyChanged}"/>
-                </Grid>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="170"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
 
-                <TextBlock Text="{x:Static loc:Strings.Settings_WhisperSection}" FontWeight="SemiBold" Margin="0,8,0,6"/>
-                <Grid Margin="0,0,0,6">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="200"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource FieldLabel}"
+                                       Text="{x:Static loc:Strings.Settings_WhisperModel}"/>
+                            <ComboBox Grid.Row="0" Grid.Column="1"
+                                      ItemsSource="{Binding WhisperModelOptions}"
+                                      SelectedItem="{Binding WhisperModel}"/>
 
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static loc:Strings.Settings_WhisperModel}" VerticalAlignment="Center" Margin="0,0,0,8"/>
-                    <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,8"
-                              ItemsSource="{Binding WhisperModelOptions}"
-                              SelectedItem="{Binding WhisperModel}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource FieldLabel}"
+                                       Text="{x:Static loc:Strings.Settings_WhisperStatus}"/>
+                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,10">
+                                <TextBlock Text="{Binding WhisperDownloadStatus}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <Button Content="{x:Static loc:Strings.Settings_Download}"
+                                        Padding="10,3"
+                                        Command="{Binding DownloadWhisperModelCommand}"/>
+                            </StackPanel>
+                        </Grid>
 
-                    <!-- GPU-Checkbox entfernt: CUDA-Runtime ist nicht referenziert, die Option wäre wirkungslos.
-                         Setting WhisperUseGpu bleibt für eine spätere CUDA-Iteration erhalten. -->
+                        <ProgressBar Value="{Binding WhisperDownloadProgress, Mode=OneWay}" Maximum="100" Height="6"
+                                     Margin="0,0,0,12"
+                                     Visibility="{Binding IsDownloading, Converter={StaticResource BoolToVis}}"/>
 
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{x:Static loc:Strings.Settings_WhisperStatus}" VerticalAlignment="Center"/>
-                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
-                        <TextBlock Text="{Binding WhisperDownloadStatus}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <Button Content="{x:Static loc:Strings.Settings_Download}"
-                                Command="{Binding DownloadWhisperModelCommand}"/>
+                        <CheckBox Content="{x:Static loc:Strings.Settings_WhisperPreload}"
+                                  IsChecked="{Binding WhisperPreload}" Margin="0,4,0,0"/>
+                        <TextBlock Style="{StaticResource Hint}" Margin="20,4,0,10"
+                                   Text="{x:Static loc:Strings.Settings_WhisperPreloadHint}"/>
+
+                        <CheckBox Content="{x:Static loc:Strings.Settings_WhisperUseGpu}"
+                                  IsChecked="{Binding WhisperUseGpu}"/>
+                        <TextBlock Style="{StaticResource Hint}" Margin="20,4,0,0"
+                                   Text="{x:Static loc:Strings.Settings_WhisperUseGpuHint}"/>
+
+                        <!-- Vokabular steht hier, weil es primär als Vorab-Kontext der Erkennung
+                             wirkt; im Nachbearbeitungs-Prompt nur zusätzlich. -->
+                        <TextBlock Style="{StaticResource SectionHeader}" Margin="0,18,0,8"
+                                   Text="{x:Static loc:Strings.Settings_VocabularySection}"/>
+                        <TextBox Height="96"
+                                 AcceptsReturn="True"
+                                 TextWrapping="NoWrap"
+                                 VerticalScrollBarVisibility="Auto"
+                                 HorizontalScrollBarVisibility="Auto"
+                                 VerticalContentAlignment="Top"
+                                 Text="{Binding VocabularyText, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,0"
+                                   Text="{x:Static loc:Strings.Settings_VocabularyHint}"/>
                     </StackPanel>
-                </Grid>
-                <ProgressBar Value="{Binding WhisperDownloadProgress, Mode=OneWay}" Maximum="100" Height="6"
-                             Margin="0,0,0,14"
-                             Visibility="{Binding IsDownloading, Converter={StaticResource BoolToVis}}"/>
-            </StackPanel>
+                </ScrollViewer>
+            </TabItem>
 
-            <!-- ── Globale Einstellungen ──────────────────────────── -->
-            <TextBlock Text="{x:Static loc:Strings.Settings_GeneralSection}" FontWeight="SemiBold" Margin="0,0,0,6"/>
-            <Grid Margin="0,0,0,10">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="200"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+            <!-- ══ Nachbearbeitung ══════════════════════════════════════ -->
+            <TabItem Header="{x:Static loc:Strings.Settings_TabPostProcessing}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Style="{StaticResource TabBody}">
+                        <CheckBox Content="{x:Static loc:Strings.Settings_TextSmoothing}"
+                                  IsChecked="{Binding TextSmoothing}"
+                                  IsEnabled="{Binding IsTextSmoothingEnabled}"
+                                  FontWeight="SemiBold"/>
+                        <TextBlock Style="{StaticResource Hint}" Margin="20,4,0,0"
+                                   Text="{x:Static loc:Strings.Settings_TextSmoothingHint}"/>
+                        <TextBlock Style="{StaticResource Hint}" Margin="20,4,0,0" Foreground="#A0522D"
+                                   Text="{x:Static loc:Strings.Settings_MissingKeyNote}"
+                                   Visibility="{Binding ShowsMissingKeyNote, Converter={StaticResource BoolToVis}}"/>
 
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static loc:Strings.Settings_UiLanguage}" VerticalAlignment="Center" Margin="0,0,0,10"/>
-                <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,10"
-                          ItemsSource="{Binding LanguageOptions}"
-                          DisplayMemberPath="Display"
-                          SelectedItem="{Binding UiLanguage}"/>
+                        <TextBlock Style="{StaticResource SectionHeader}" Margin="0,16,0,8"
+                                   Text="{x:Static loc:Strings.Settings_AiService}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <RadioButton Content="{x:Static loc:Strings.Settings_ServiceOpenAi}"
+                                         IsChecked="{Binding IsOpenAiService}" Margin="0,0,24,0"/>
+                            <RadioButton Content="{x:Static loc:Strings.Settings_ServiceClaude}"
+                                         IsChecked="{Binding IsClaudeService}"/>
+                        </StackPanel>
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="{x:Static loc:Strings.Settings_DefaultMode}" VerticalAlignment="Center" Margin="0,0,0,10"/>
-                <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,10"
-                          ItemsSource="{Binding DictationOptions}"
-                          DisplayMemberPath="Display"
-                          SelectedItem="{Binding SelectedDictation}"/>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="170"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="{x:Static loc:Strings.Settings_Hotkey}" VerticalAlignment="Center" Margin="0,0,0,10"/>
-                <TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,10"
-                         Text="{Binding Hotkey, UpdateSourceTrigger=PropertyChanged}"/>
+                            <!-- Modellfelder: nur das Paar des gewählten Dienstes -->
+                            <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource FieldLabel}"
+                                       Text="{x:Static loc:Strings.Settings_ChatModel}"/>
+                            <TextBox Grid.Row="0" Grid.Column="1"
+                                     Visibility="{Binding IsOpenAiService, Converter={StaticResource BoolToVis}}"
+                                     Text="{Binding OpenAiChatModel, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBox Grid.Row="0" Grid.Column="1"
+                                     Visibility="{Binding IsClaudeService, Converter={StaticResource BoolToVis}}"
+                                     Text="{Binding ClaudeModel, UpdateSourceTrigger=PropertyChanged}"/>
 
-                <TextBlock Grid.Row="3" Grid.Column="0" Text="{x:Static loc:Strings.Settings_Microphone}" VerticalAlignment="Center" Margin="0,0,0,10"/>
-                <ComboBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,10"
-                          ItemsSource="{Binding MicrophoneOptions}"
-                          DisplayMemberPath="Name"
-                          SelectedItem="{Binding SelectedMicrophone}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource FieldLabel}"
+                                       Text="{x:Static loc:Strings.Settings_MaxTokens}"/>
+                            <TextBox Grid.Row="1" Grid.Column="1"
+                                     Visibility="{Binding IsOpenAiService, Converter={StaticResource BoolToVis}}"
+                                     Text="{Binding OpenAiChatMaxTokens, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBox Grid.Row="1" Grid.Column="1"
+                                     Visibility="{Binding IsClaudeService, Converter={StaticResource BoolToVis}}"
+                                     Text="{Binding ClaudeMaxTokens, UpdateSourceTrigger=PropertyChanged}"/>
 
-                <TextBlock Grid.Row="4" Grid.Column="0" Text="{x:Static loc:Strings.Settings_RestoreClipboard}" VerticalAlignment="Center" Margin="0,0,0,10"/>
-                <CheckBox Grid.Row="4" Grid.Column="1" Margin="0,0,0,10" VerticalAlignment="Center"
-                          IsChecked="{Binding RestoreClipboard}"/>
+                            <!-- Genau EIN Schlüsselfeld: zwei Felder hießen, dass ein getippter
+                                 Schlüssel im versteckten stehen bliebe und beim falschen Dienst landet. -->
+                            <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource FieldLabelTop}"
+                                       Text="{x:Static loc:Strings.Settings_ApiKey}"/>
+                            <StackPanel Grid.Row="2" Grid.Column="1">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <PasswordBox x:Name="ApiKeyBox" Grid.Column="0" Margin="0,0,6,0"/>
+                                    <Button Grid.Column="1" Padding="10,3"
+                                            Content="{x:Static loc:Strings.Common_Save}"
+                                            Click="OnSaveApiKeyClick"/>
+                                </Grid>
+                                <TextBlock Margin="0,4,0,0" FontSize="11"
+                                           Text="{Binding ApiKeyStatus}"
+                                           Foreground="{Binding IsApiKeyStored, Converter={StaticResource ApiKeyStatusBrushConverter}}"/>
+                            </StackPanel>
+                        </Grid>
 
-                <TextBlock Grid.Row="5" Grid.Column="0" Text="{x:Static loc:Strings.Settings_ClipboardFree}" VerticalAlignment="Top" Margin="0,2,0,10"/>
-                <StackPanel Grid.Row="5" Grid.Column="1" Margin="0,0,0,10">
-                    <CheckBox VerticalAlignment="Center" IsChecked="{Binding PreferClipboardFreeInsertion}"
-                              Content="{x:Static loc:Strings.Settings_ClipboardFreeOption}"/>
-                    <TextBlock Margin="0,4,0,0" FontSize="11" Foreground="Gray" TextWrapping="Wrap"
-                               Text="{x:Static loc:Strings.Settings_ClipboardFreeHint}"/>
-                </StackPanel>
+                        <TextBlock Style="{StaticResource Hint}" Margin="0,10,0,0"
+                                   Text="{x:Static loc:Strings.Settings_KeyHint}"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
 
-                <TextBlock Grid.Row="6" Grid.Column="0" Text="{x:Static loc:Strings.Settings_DebugLogging}" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                <StackPanel Grid.Row="6" Grid.Column="1">
-                    <CheckBox VerticalAlignment="Center" IsChecked="{Binding DebugLogging}"
-                              Content="{x:Static loc:Strings.Settings_DebugLoggingOption}"/>
-                    <TextBlock Margin="0,4,0,0" FontSize="11" Foreground="Gray" TextWrapping="Wrap"
-                               Text="{x:Static loc:Strings.Settings_DebugLoggingHint}"/>
-                </StackPanel>
-            </Grid>
+            <!-- ══ Bedienung ════════════════════════════════════════════ -->
+            <TabItem Header="{x:Static loc:Strings.Settings_TabControls}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Style="{StaticResource TabBody}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="170"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
 
-            <!-- ── Vokabular ───────────────── -->
-            <TextBlock Text="{x:Static loc:Strings.Settings_VocabularySection}" FontWeight="SemiBold" Margin="0,0,0,6"/>
-            <TextBox Height="92" Margin="0,0,0,4"
-                     AcceptsReturn="True"
-                     TextWrapping="NoWrap"
-                     VerticalScrollBarVisibility="Auto"
-                     HorizontalScrollBarVisibility="Auto"
-                     VerticalContentAlignment="Top"
-                     Text="{Binding VocabularyText, UpdateSourceTrigger=PropertyChanged}"/>
-            <TextBlock Margin="0,0,0,14" FontSize="11" Foreground="Gray" TextWrapping="Wrap"
-                       Text="{x:Static loc:Strings.Settings_VocabularyHint}"/>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource FieldLabel}"
+                                       Text="{x:Static loc:Strings.Settings_UiLanguage}"/>
+                            <ComboBox Grid.Row="0" Grid.Column="1"
+                                      ItemsSource="{Binding LanguageOptions}"
+                                      DisplayMemberPath="Display"
+                                      SelectedItem="{Binding UiLanguage}"/>
 
-            <!-- ── API-Keys ───────────────────────────────────────── -->
-            <TextBlock Text="{x:Static loc:Strings.Settings_ApiKeysSection}" FontWeight="SemiBold" Margin="0,0,0,6"/>
-            <Grid Margin="0,0,0,6">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="200"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource FieldLabel}"
+                                       Text="{x:Static loc:Strings.Settings_Hotkey}"/>
+                            <TextBox Grid.Row="1" Grid.Column="1"
+                                     Text="{Binding Hotkey, UpdateSourceTrigger=PropertyChanged}"/>
 
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static loc:Strings.Settings_AnthropicKey}" VerticalAlignment="Top" Margin="0,2,0,10"/>
-                <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,10">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <PasswordBox x:Name="AnthropicApiKeyBox" Grid.Column="0" Margin="0,0,6,0"/>
-                        <Button Grid.Column="1" Content="{x:Static loc:Strings.Common_Save}" Click="OnSaveAnthropicApiKeyClick"/>
-                    </Grid>
-                    <TextBlock Margin="0,4,0,0" FontSize="11"
-                               Text="{Binding AnthropicApiKeyStatus}"
-                               Foreground="{Binding IsAnthropicApiKeyStored, Converter={StaticResource ApiKeyStatusBrushConverter}}"/>
-                </StackPanel>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource FieldLabel}"
+                                       Text="{x:Static loc:Strings.Settings_Microphone}"/>
+                            <ComboBox Grid.Row="2" Grid.Column="1"
+                                      ItemsSource="{Binding MicrophoneOptions}"
+                                      DisplayMemberPath="Name"
+                                      SelectedItem="{Binding SelectedMicrophone}"/>
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="{x:Static loc:Strings.Settings_OpenAiKey}" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                <StackPanel Grid.Row="1" Grid.Column="1">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <PasswordBox x:Name="OpenAiApiKeyBox" Grid.Column="0" Margin="0,0,6,0"/>
-                        <Button Grid.Column="1" Content="{x:Static loc:Strings.Common_Save}" Click="OnSaveOpenAiApiKeyClick"/>
-                    </Grid>
-                    <TextBlock Margin="0,4,0,0" FontSize="11"
-                               Text="{Binding OpenAiApiKeyStatus}"
-                               Foreground="{Binding IsOpenAiApiKeyStored, Converter={StaticResource ApiKeyStatusBrushConverter}}"/>
-                </StackPanel>
-            </Grid>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource FieldLabelTop}"
+                                       Text="{x:Static loc:Strings.Settings_RestoreClipboard}"/>
+                            <StackPanel Grid.Row="3" Grid.Column="1" Margin="0,0,0,10">
+                                <CheckBox IsChecked="{Binding RestoreClipboard}"
+                                          Content="{x:Static loc:Strings.Settings_RestoreClipboardOption}"/>
+                            </StackPanel>
 
-            <TextBlock Margin="0,6,0,14"
-                       TextWrapping="Wrap" Foreground="Gray" FontSize="11"
-                       Text="{x:Static loc:Strings.Settings_KeyHint}"/>
+                            <TextBlock Grid.Row="4" Grid.Column="0" Style="{StaticResource FieldLabelTop}"
+                                       Text="{x:Static loc:Strings.Settings_ClipboardFree}"/>
+                            <StackPanel Grid.Row="4" Grid.Column="1" Margin="0,0,0,10">
+                                <CheckBox IsChecked="{Binding PreferClipboardFreeInsertion}"
+                                          Content="{x:Static loc:Strings.Settings_ClipboardFreeOption}"/>
+                                <TextBlock Style="{StaticResource Hint}"
+                                           Text="{x:Static loc:Strings.Settings_ClipboardFreeHint}"/>
+                            </StackPanel>
 
-            <!-- ── Buttons ────────────────────────────────────────── -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="{x:Static loc:Strings.Common_Cancel}" Width="90" Margin="0,0,8,0" IsCancel="True" Click="OnCancelClick"/>
-                <Button Content="{x:Static loc:Strings.Common_Save}" Width="90" IsDefault="True" Click="OnSaveClick"/>
-            </StackPanel>
+                            <TextBlock Grid.Row="5" Grid.Column="0" Style="{StaticResource FieldLabelTop}"
+                                       Text="{x:Static loc:Strings.Settings_DebugLogging}"/>
+                            <StackPanel Grid.Row="5" Grid.Column="1">
+                                <CheckBox IsChecked="{Binding DebugLogging}"
+                                          Content="{x:Static loc:Strings.Settings_DebugLoggingOption}"/>
+                                <TextBlock Style="{StaticResource Hint}"
+                                           Text="{x:Static loc:Strings.Settings_DebugLoggingHint}"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
 
-        </StackPanel>
-    </ScrollViewer>
+        </TabControl>
+    </DockPanel>
 </Window>

@@ -2,11 +2,17 @@ namespace Schnack.Models;
 
 public record AppSettings
 {
-    /// <summary>3 = aktuelles Schema; kleiner oder fehlend = ältere Datei (Migration in JsonSettingsService).</summary>
-    public int SettingsSchema { get; init; } = 3;
+    /// <summary>4 = aktuelles Schema; kleiner oder fehlend = ältere Datei (Migration in JsonSettingsService).</summary>
+    public int SettingsSchema { get; init; } = 4;
 
-    /// <summary>Gewählter Backend-Stack: OpenAi (Cloud-STT + OpenAI-Chat) oder Claude (Whisper.net + Anthropic).</summary>
-    public BackendProvider BackendProvider { get; init; } = BackendProvider.OpenAi;
+    /// <summary>KI-Dienst für die Nachbearbeitung. Die Spracherkennung läuft immer lokal.
+    /// Bewusst ein eigener JSON-Name: das frühere Feld backendProvider kannte den Wert "local",
+    /// den dieses Enum nicht abbilden kann — ein Mapping darauf würde beim Laden werfen.</summary>
+    public AiService AiService { get; init; } = AiService.OpenAi;
+
+    /// <summary>Transkript durch den KI-Dienst glätten (und im Übersetzungsmodus übersetzen) lassen.
+    /// Aus oder ohne hinterlegten Schlüssel: der Rohtext der Spracherkennung wird eingefügt.</summary>
+    public bool TextSmoothing { get; init; } = true;
 
     /// <summary>Sprache der Oberfläche (Tray, Dialoge, Meldungen).</summary>
     public AppLanguage UiLanguage { get; init; } = AppLanguage.De;
@@ -17,13 +23,10 @@ public record AppSettings
     /// <summary>Aktiver Modus beim Start: "correct" oder "translate".</summary>
     public string DefaultMode { get; init; } = "correct";
 
-    /// <summary>OpenAI Speech-to-Text Modell (API audio/transcriptions).</summary>
-    public string OpenAiTranscriptionModel { get; init; } = "gpt-4o-mini-transcribe";
-
-    /// <summary>OpenAI Chat-Modell für Textverarbeitung (API chat/completions), nur bei BackendProvider.OpenAi.</summary>
+    /// <summary>OpenAI Chat-Modell für die Nachbearbeitung (API chat/completions), nur bei AiService.OpenAi.</summary>
     public string OpenAiChatModel { get; init; } = "gpt-4o-mini";
 
-    /// <summary>Anthropic Claude-Modell für Textverarbeitung, nur bei BackendProvider.Claude.</summary>
+    /// <summary>Anthropic Claude-Modell für die Nachbearbeitung, nur bei AiService.Claude.</summary>
     public string ClaudeModel { get; init; } = "claude-haiku-4-5";
     public int ClaudeMaxTokens { get; init; } = 4096;
 
@@ -33,8 +36,13 @@ public record AppSettings
     /// <summary>Whisper.net Modell-Dateiname ohne Präfix/Extension: large-v3-turbo, medium, base.</summary>
     public string WhisperModel { get; init; } = "large-v3-turbo";
 
-    /// <summary>CUDA-GPU für Whisper-Inferenz nutzen (erfordert Whisper.net.Runtime.Cuda.Windows).</summary>
+    /// <summary>GPU (Vulkan) für die Whisper-Inferenz nutzen. Wirkung ist treiberabhängig;
+    /// Whisper.net fällt selbsttätig auf CPU zurück, wenn keine Vulkan-Runtime lädt.</summary>
     public bool WhisperUseGpu { get; init; } = false;
+
+    /// <summary>Whisper-Modell beim App-Start vorladen und einmal aufwärmen, damit das erste
+    /// Diktat nicht auf das Laden der Modelldatei wartet.</summary>
+    public bool WhisperPreload { get; init; } = true;
 
     public int? MicrophoneDeviceId { get; init; } = null;
     public string Hotkey { get; init; } = "Ctrl+Alt+S";

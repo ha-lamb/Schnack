@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using Schnack.Models;
 
 namespace Schnack.Services;
 
@@ -103,6 +104,9 @@ public sealed class DpapiSecretService : ISecretService
     public bool HasOpenAiApiKey() =>
         !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENAI_API_KEY"))
         || File.Exists(OpenAiSecretsPath);
+
+    public bool HasKeyFor(AiService service) =>
+        service == AiService.Claude ? HasApiKey() : HasOpenAiApiKey();
 
     public void SaveOpenAiApiKey(string apiKey)
     {

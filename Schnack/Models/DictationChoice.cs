@@ -3,10 +3,11 @@ using Schnack.Localization;
 namespace Schnack.Models;
 
 /// <summary>
-/// Eine der vier wählbaren Diktat-Optionen — die Kombination aus gesprochener Sprache und
-/// Weiterverarbeitung. Geglättet wird immer; <see cref="DictationMode.Translate"/> übersetzt
-/// zusätzlich in die jeweils andere Sprache.
-/// Tray-Menü und Einstellungen speisen sich aus <see cref="All"/>, damit sie nicht auseinanderlaufen.
+/// Eine der wählbaren Diktat-Optionen — die Kombination aus gesprochener Sprache und
+/// Weiterverarbeitung. Übersetzt wird ausschließlich vom KI-Dienst; ohne aktive Glättung
+/// bleiben deshalb nur die beiden reinen Diktiersprachen.
+/// Tray-Menü und Einstellungen speisen sich aus <see cref="Available"/>, damit sie nicht
+/// auseinanderlaufen.
 /// </summary>
 public readonly record struct DictationChoice(AppLanguage Language, DictationMode Mode)
 {
@@ -25,6 +26,21 @@ public readonly record struct DictationChoice(AppLanguage Language, DictationMod
         (AppLanguage.De, DictationMode.Translate) => Strings.Mode_GermanToEnglish,
         _ => Strings.Mode_EnglishToGerman
     };
+
+    /// <summary>Die unter der aktuellen Konfiguration tatsächlich möglichen Optionen.</summary>
+    public static DictationChoice[] Available(bool smoothingActive) =>
+        smoothingActive
+            ? All
+            : [.. All.Where(choice => choice.Mode == DictationMode.Correct)];
+
+    /// <summary>
+    /// Bildet eine nicht mehr unterstützte Auswahl auf die nächstbeste ab: die Sprache bleibt,
+    /// nur die Übersetzung fällt weg — die für den Nutzer am wenigsten überraschende Abstufung.
+    /// </summary>
+    public static DictationChoice ClampTo(DictationChoice choice, bool smoothingActive) =>
+        smoothingActive
+            ? choice
+            : new DictationChoice(choice.Language, DictationMode.Correct);
 
     /// <summary>Rekonstruiert die Auswahl aus den gespeicherten Settings-Feldern.</summary>
     public static DictationChoice FromSettings(AppSettings settings) =>

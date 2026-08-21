@@ -131,22 +131,17 @@ Jetzt herunterladen?</value></data>
   <data name="Startup_HotkeyFailed" xml:space="preserve"><value>Hotkey „{0}“ konnte nicht registriert werden.</value></data>
 
   <data name="Settings_Title" xml:space="preserve"><value>Schnack – Einstellungen</value></data>
-  <data name="Settings_Backend" xml:space="preserve"><value>Backend</value></data>
-  <data name="Settings_BackendOpenAi" xml:space="preserve"><value>OpenAI  (Cloud-Spracherkennung + OpenAI Chat)</value></data>
-  <data name="Settings_BackendClaude" xml:space="preserve"><value>Claude  (lokales Whisper + Anthropic Claude)</value></data>
-  <data name="Settings_OpenAiSection" xml:space="preserve"><value>OpenAI</value></data>
-  <data name="Settings_SttModel" xml:space="preserve"><value>Spracherkennungs-Modell:</value></data>
-  <data name="Settings_ChatModel" xml:space="preserve"><value>Chat-Modell:</value></data>
-  <data name="Settings_ClaudeSection" xml:space="preserve"><value>Claude (Anthropic)</value></data>
-  <data name="Settings_ClaudeModel" xml:space="preserve"><value>Claude-Modell:</value></data>
+  <data name="Settings_TextSmoothing" xml:space="preserve"><value>Text glätten</value></data>
+  <data name="Settings_TextSmoothingHint" xml:space="preserve"><value>Zeichensetzung, Füllwörter und Übersetzung übernimmt das Sprachmodell. Aus: der Rohtext der Spracherkennung wird eingefügt.</value></data>
+  <data name="Settings_ChatModel" xml:space="preserve"><value>Modell:</value></data>
   <data name="Settings_MaxTokens" xml:space="preserve"><value>Max Tokens:</value></data>
-  <data name="Settings_WhisperSection" xml:space="preserve"><value>Whisper (lokal)</value></data>
   <data name="Settings_WhisperModel" xml:space="preserve"><value>Modell:</value></data>
   <data name="Settings_WhisperStatus" xml:space="preserve"><value>Modell-Status:</value></data>
+  <data name="Settings_WhisperPreload" xml:space="preserve"><value>Modell beim Start vorladen</value></data>
+  <data name="Settings_WhisperUseGpu" xml:space="preserve"><value>Grafikkarte nutzen (Vulkan)</value></data>
+  <data name="Settings_WhisperUseGpuHint" xml:space="preserve"><value>Ob das hilft, hängt vom Grafiktreiber ab. Bei Problemen abschalten — Schnack rechnet dann auf dem Prozessor.</value></data>
   <data name="Settings_Download" xml:space="preserve"><value>Herunterladen</value></data>
-  <data name="Settings_GeneralSection" xml:space="preserve"><value>Allgemein</value></data>
   <data name="Settings_UiLanguage" xml:space="preserve"><value>Oberflächensprache:</value></data>
-  <data name="Settings_DefaultMode" xml:space="preserve"><value>Diktat-Modus:</value></data>
   <data name="Settings_Hotkey" xml:space="preserve"><value>Hotkey:</value></data>
   <data name="Settings_Microphone" xml:space="preserve"><value>Mikrofon:</value></data>
   <data name="Settings_RestoreClipboard" xml:space="preserve"><value>Clipboard sichern:</value></data>
@@ -157,10 +152,7 @@ Jetzt herunterladen?</value></data>
   <data name="Settings_DebugLoggingOption" xml:space="preserve"><value>Ausführliches Log (keine Transkripte)</value></data>
   <data name="Settings_DebugLoggingHint" xml:space="preserve"><value>Alternativ: SCHNACK_DEBUG=1 als Umgebungsvariable.</value></data>
   <data name="Settings_VocabularySection" xml:space="preserve"><value>Vokabular</value></data>
-  <data name="Settings_VocabularyHint" xml:space="preserve"><value>Ein Begriff pro Zeile. Eigennamen und Fachbegriffe werden dadurch zuverlässiger erkannt und korrekt geschrieben. Die Begriffe werden bei jedem Diktat an das gewählte Backend übertragen.</value></data>
-  <data name="Settings_ApiKeysSection" xml:space="preserve"><value>API-Keys</value></data>
-  <data name="Settings_AnthropicKey" xml:space="preserve"><value>Anthropic (Claude):</value></data>
-  <data name="Settings_OpenAiKey" xml:space="preserve"><value>OpenAI (Spracherkennung/Chat):</value></data>
+  <data name="Settings_VocabularyHint" xml:space="preserve"><value>Ein Begriff pro Zeile. Eigennamen und Fachbegriffe werden dadurch zuverlässiger erkannt. Bei eingeschalteter Glättung gehen sie zusätzlich an den KI-Dienst — sonst bleiben sie auf diesem Rechner.</value></data>
   <data name="Settings_KeyHint" xml:space="preserve"><value>Keys werden DPAPI-verschlüsselt gespeichert. Alternativ: ANTHROPIC_API_KEY / OPENAI_API_KEY als Umgebungsvariablen.</value></data>
   <data name="Settings_KeyStored" xml:space="preserve"><value>✓ gespeichert</value></data>
   <data name="Settings_KeyNotStored" xml:space="preserve"><value>✗ nicht hinterlegt</value></data>
@@ -181,7 +173,19 @@ Jetzt herunterladen?</value></data>
   <data name="FirstRun_Title" xml:space="preserve"><value>Willkommen bei Schnack</value></data>
   <data name="FirstRun_Intro" xml:space="preserve"><value>Schnack wurde eingerichtet. Bevor du diktierst:</value></data>
   <data name="FirstRun_Language" xml:space="preserve"><value>Sprache der Oberfläche:</value></data>
-  <data name="FirstRun_Step1" xml:space="preserve"><value>1. In den Einstellungen ein Backend wählen: OpenAI (Standard, Cloud) oder Claude (lokales Whisper + Anthropic).</value></data>
-  <data name="FirstRun_Step2" xml:space="preserve"><value>2. Den passenden API-Key hinterlegen: OPENAI_API_KEY bzw. ANTHROPIC_API_KEY als Umgebungsvariable oder in den Einstellungen speichern.</value></data>
+  <data name="FirstRun_Step1" xml:space="preserve"><value>1. Lade in den Einstellungen unter „Spracherkennung" das Whisper-Modell herunter. Danach kann Schnack diktieren — vollständig auf diesem Rechner.</value></data>
+  <data name="FirstRun_Step2" xml:space="preserve"><value>2. Optional: Für Glätten und Übersetzen unter „Nachbearbeitung" einen Zugangsschlüssel für OpenAI oder Claude hinterlegen. Ohne Schlüssel wird der Rohtext eingefügt.</value></data>
   <data name="FirstRun_OpenSettings" xml:space="preserve"><value>Einstellungen öffnen…</value></data>
+  <data name="Balloon_NoSmoothingWithoutKey" xml:space="preserve"><value>Kein Zugangsschlüssel hinterlegt — der Text wird ohne Glättung eingefügt.</value></data>
+  <data name="Settings_TabSpeech" xml:space="preserve"><value>Spracherkennung</value></data>
+  <data name="Settings_TabPostProcessing" xml:space="preserve"><value>Nachbearbeitung</value></data>
+  <data name="Settings_TabControls" xml:space="preserve"><value>Bedienung</value></data>
+  <data name="Settings_SpeechIntro" xml:space="preserve"><value>Die Spracherkennung läuft vollständig auf diesem Rechner. Es verlässt dabei nichts das Gerät.</value></data>
+  <data name="Settings_WhisperPreloadHint" xml:space="preserve"><value>Kostet Arbeitsspeicher, spart aber die Wartezeit vor dem ersten Diktat.</value></data>
+  <data name="Settings_AiService" xml:space="preserve"><value>KI-Dienst</value></data>
+  <data name="Settings_ServiceOpenAi" xml:space="preserve"><value>OpenAI</value></data>
+  <data name="Settings_ServiceClaude" xml:space="preserve"><value>Anthropic Claude</value></data>
+  <data name="Settings_MissingKeyNote" xml:space="preserve"><value>Ohne Zugangsschlüssel für diesen Dienst wird nicht geglättet und nicht übersetzt.</value></data>
+  <data name="Settings_ApiKey" xml:space="preserve"><value>Zugangsschlüssel:</value></data>
+  <data name="Settings_RestoreClipboardOption" xml:space="preserve"><value>Vorherigen Inhalt wiederherstellen</value></data>
 </root>

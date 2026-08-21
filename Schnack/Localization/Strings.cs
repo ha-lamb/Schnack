@@ -90,22 +90,17 @@ public static class Strings
     public static string Startup_HotkeyFailed => Get(nameof(Startup_HotkeyFailed));
 
     public static string Settings_Title => Get(nameof(Settings_Title));
-    public static string Settings_Backend => Get(nameof(Settings_Backend));
-    public static string Settings_BackendOpenAi => Get(nameof(Settings_BackendOpenAi));
-    public static string Settings_BackendClaude => Get(nameof(Settings_BackendClaude));
-    public static string Settings_OpenAiSection => Get(nameof(Settings_OpenAiSection));
-    public static string Settings_SttModel => Get(nameof(Settings_SttModel));
+    public static string Settings_TextSmoothing => Get(nameof(Settings_TextSmoothing));
+    public static string Settings_TextSmoothingHint => Get(nameof(Settings_TextSmoothingHint));
     public static string Settings_ChatModel => Get(nameof(Settings_ChatModel));
-    public static string Settings_ClaudeSection => Get(nameof(Settings_ClaudeSection));
-    public static string Settings_ClaudeModel => Get(nameof(Settings_ClaudeModel));
     public static string Settings_MaxTokens => Get(nameof(Settings_MaxTokens));
-    public static string Settings_WhisperSection => Get(nameof(Settings_WhisperSection));
     public static string Settings_WhisperModel => Get(nameof(Settings_WhisperModel));
     public static string Settings_WhisperStatus => Get(nameof(Settings_WhisperStatus));
+    public static string Settings_WhisperPreload => Get(nameof(Settings_WhisperPreload));
+    public static string Settings_WhisperUseGpu => Get(nameof(Settings_WhisperUseGpu));
+    public static string Settings_WhisperUseGpuHint => Get(nameof(Settings_WhisperUseGpuHint));
     public static string Settings_Download => Get(nameof(Settings_Download));
-    public static string Settings_GeneralSection => Get(nameof(Settings_GeneralSection));
     public static string Settings_UiLanguage => Get(nameof(Settings_UiLanguage));
-    public static string Settings_DefaultMode => Get(nameof(Settings_DefaultMode));
     public static string Settings_Hotkey => Get(nameof(Settings_Hotkey));
     public static string Settings_Microphone => Get(nameof(Settings_Microphone));
     public static string Settings_RestoreClipboard => Get(nameof(Settings_RestoreClipboard));
@@ -117,9 +112,6 @@ public static class Strings
     public static string Settings_DebugLoggingHint => Get(nameof(Settings_DebugLoggingHint));
     public static string Settings_VocabularySection => Get(nameof(Settings_VocabularySection));
     public static string Settings_VocabularyHint => Get(nameof(Settings_VocabularyHint));
-    public static string Settings_ApiKeysSection => Get(nameof(Settings_ApiKeysSection));
-    public static string Settings_AnthropicKey => Get(nameof(Settings_AnthropicKey));
-    public static string Settings_OpenAiKey => Get(nameof(Settings_OpenAiKey));
     public static string Settings_KeyHint => Get(nameof(Settings_KeyHint));
     public static string Settings_KeyStored => Get(nameof(Settings_KeyStored));
     public static string Settings_KeyNotStored => Get(nameof(Settings_KeyNotStored));
@@ -143,4 +135,16 @@ public static class Strings
     public static string FirstRun_Step1 => Get(nameof(FirstRun_Step1));
     public static string FirstRun_Step2 => Get(nameof(FirstRun_Step2));
     public static string FirstRun_OpenSettings => Get(nameof(FirstRun_OpenSettings));
+    public static string Balloon_NoSmoothingWithoutKey => Get(nameof(Balloon_NoSmoothingWithoutKey));
+    public static string Settings_TabSpeech => Get(nameof(Settings_TabSpeech));
+    public static string Settings_TabPostProcessing => Get(nameof(Settings_TabPostProcessing));
+    public static string Settings_TabControls => Get(nameof(Settings_TabControls));
+    public static string Settings_SpeechIntro => Get(nameof(Settings_SpeechIntro));
+    public static string Settings_WhisperPreloadHint => Get(nameof(Settings_WhisperPreloadHint));
+    public static string Settings_AiService => Get(nameof(Settings_AiService));
+    public static string Settings_ServiceOpenAi => Get(nameof(Settings_ServiceOpenAi));
+    public static string Settings_ServiceClaude => Get(nameof(Settings_ServiceClaude));
+    public static string Settings_MissingKeyNote => Get(nameof(Settings_MissingKeyNote));
+    public static string Settings_ApiKey => Get(nameof(Settings_ApiKey));
+    public static string Settings_RestoreClipboardOption => Get(nameof(Settings_RestoreClipboardOption));
 }
