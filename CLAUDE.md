@@ -42,7 +42,7 @@ Dienst- und Glättungswechsel wirken ab dem nächsten Pipeline-Lauf ohne App-Neu
 - **Nachbearbeitung (Claude):** `HttpClient` gegen Anthropic `v1/messages`. Kein Anthropic-SDK.
 - **Nachbearbeitung (OpenAI):** `HttpClient` gegen OpenAI `v1/chat/completions`. Gleiches Interface (`IPostProcessingService`).
 - **Installer + Auto-Update:** `Velopack` (NuGet) + `vpk` CLI. Updates via GitHub Releases.
-- **DI:** `Microsoft.Extensions.DependencyInjection` (inkl. Keyed Services für die Backend-Wahl)
+- **DI:** `Microsoft.Extensions.DependencyInjection` (inkl. Keyed Services für die Wahl des KI-Dienstes)
 - **Logging:** `Microsoft.Extensions.Logging` + Serilog File-Sink (`Serilog.Sinks.File`)
 - **Secrets:** Windows DPAPI (`ProtectedData`, seit .NET 10 ohne separates NuGet-Paket)
 - **Tests:** xUnit + Moq
@@ -52,7 +52,7 @@ Dienst- und Glättungswechsel wirken ab dem nächsten Pipeline-Lauf ohne App-Neu
 ## Build & Run
 
 ```pwsh
-# Einmalig: API-Keys setzen (mindestens einer der beiden, je nach Backend-Wahl)
+# Optional: API-Key für die Nachbearbeitung (nur einer nötig, je nach gewähltem Dienst)
 setx ANTHROPIC_API_KEY "sk-ant-..."     # nur für Claude-Backend
 setx OPENAI_API_KEY "sk-..."             # nur für OpenAI-Backend
 # Terminal/VS Code danach neu starten
@@ -153,7 +153,7 @@ Der Arbeitsbereich kommt bewusst vom Monitor unter dem Cursor (`MonitorFromPoint
 
 ### Vokabular
 
-- `AppSettings.Vocabulary` (`string[]`) hält Eigennamen und Fachbegriffe. `Services/Internal/VocabularyPrompt.cs` formatiert sie für die zwei Stellen, an denen sie wirken: als Vorab-Kontext der Spracherkennung (beide Backends, gekappt auf ~700 Zeichen wegen des 224-Token-Fensters) und als Anweisungsblock im Nachbearbeitungs-Prompt (`{{VOCABULARY}}`-Platzhalter in allen vier Templates).
+- `AppSettings.Vocabulary` (`string[]`) hält Eigennamen und Fachbegriffe. `Services/Internal/VocabularyPrompt.cs` formatiert sie für die zwei Stellen, an denen sie wirken: als Vorab-Kontext der Spracherkennung (gekappt auf ~700 Zeichen wegen des 224-Token-Fensters) und als Anweisungsblock im Nachbearbeitungs-Prompt (`{{VOCABULARY}}`-Platzhalter in allen vier Templates).
 - Die Formulierungen dort sind **funktionale Prompts, keine UI-Texte** — sie gehören nicht in die `.resx`, sondern folgen der Sprache des jeweiligen Prompt-Templates.
 - Im lokalen Whisper-Pfad zusätzlich `WithCarryInitialPrompt(true)`, sonst wirkt die Liste nur im ersten 30-Sekunden-Fenster.
 - **Begriffe nie im Klartext loggen** — nur ihre Anzahl.
