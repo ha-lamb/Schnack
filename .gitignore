@@ -19,6 +19,10 @@ logs/
 *.log
 .env
 .claude/settings.local.json
+# Projektlokale Skills bleiben auf der Platte (Cowork-Sessions laden nur diese),
+# gehoeren aber nicht ins oeffentliche Repo - sie enthalten private Pfade.
+.claude/skills/
+.claude/worktrees/
 *conflict*
 *Conflict*
 *_wpftmp.csproj
