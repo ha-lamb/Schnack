@@ -6,8 +6,8 @@
 **Version:** siehe `<Version>` in `Schnack/Schnack.csproj`
 **Repo:** `ha-lamb/Schnack` (**public** seit 19.08.2026, MIT), `main` synchron
 **Build/Tests:** grün (167 Tests), keine Warnungen
-**Release:** **v1.6.1 (22.08.2026)** — Fehlerbehebung an der Glättung; keine offenen Feature-Wünsche
-**Vorgänger:** v1.6.0 (21.08.2026). Das Full-Paket der **jeweils letzten** Version bleibt in `releases/` als Delta-Basis erhalten — derzeit `Schnack-1.6.1-full.nupkg`.
+**Release:** **v1.6.2 (22.08.2026)** — zwei Fehlerbehebungen: halluzinierte Floskeln auf Stille, Zombie-Prozess beim Beenden; keine offenen Feature-Wünsche
+**Vorgänger:** v1.6.1 (22.08.2026). Das Full-Paket der **jeweils letzten** Version bleibt in `releases/` als Delta-Basis erhalten — derzeit `Schnack-1.6.2-full.nupkg`.
 
 ---
 
@@ -75,6 +75,7 @@ Keine Feature-Wünsche offen. Was an technischen Punkten bewusst liegen bleibt:
 - [x] Update-Mechanismus verifiziert (20.08.2026): v1.3.2 → v1.5.1 über Benachrichtigung, Delta-Download (116 KB) und Neustart.
 - [x] **Update auf v1.6.0 verifiziert (21.08.2026):** Sprung von der installierten v1.5.1 durchgelaufen — samt Settings-Migration auf Schema 4 im echten Update-Pfad. Das Delta war mit 28 MB ausnahmsweise fast so groß wie ein Vollpaket, weil die Vulkan-Runtime komplett neu dazukam.
 - [x] **v1.6.1 veröffentlicht und Update verifiziert (22.08.2026):** Delta wieder klein — **63 KB**, weil Velopack nur 6 von 62 Dateien patchen musste. Damit ist belegt, dass der 28-MB-Ausreißer einmalig war.
+- [x] **v1.6.2 veröffentlicht (22.08.2026):** Delta 62 KB, 6 von 62 Dateien gepatcht — dieselbe Größenordnung wie bei v1.6.1.
 
 ---
 
