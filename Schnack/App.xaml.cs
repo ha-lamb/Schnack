@@ -498,30 +498,46 @@ public partial class App : Application
     {
         _logger?.LogInformation("Schnack shutting down");
 
-        // Muss vor der Entsorgung des Providers geschehen: ein laufendes Vorladen wuerde sonst
-        // auf ein bereits entsorgtes Semaphor treffen.
-        _warmupCts?.Cancel();
-        _warmupCts?.Dispose();
-        _warmupCts = null;
+        // Aufraeumen darf das Beenden nicht verhindern. Warf hier irgendetwas, uebersprang der
+        // Ablauf frueher die Mutex-Freigabe und Shutdown(0) — der Prozess lief dann unsichtbar
+        // weiter (Tray-Symbol war schon entsorgt) und blockierte jeden neuen Start.
+        try
+        {
+            // Muss vor der Entsorgung des Providers geschehen: ein laufendes Vorladen wuerde sonst
+            // auf ein bereits entsorgtes Semaphor treffen.
+            _warmupCts?.Cancel();
+            _warmupCts?.Dispose();
+            _warmupCts = null;
 
-        _orchestrator?.Dispose();
-        _hotkeyService?.Unregister();
-        _floatingRecordUi?.Dispose();
-        _trayService?.Dispose();
+            _orchestrator?.Dispose();
+            _hotkeyService?.Unregister();
+            _floatingRecordUi?.Dispose();
+            _trayService?.Dispose();
 
-        _recordingService?.Dispose();
+            _recordingService?.Dispose();
 
-        // ServiceProvider muss per DisposeAsync freigegeben werden, wenn Singletons IAsyncDisposable implementieren.
-        if (_serviceProvider is IAsyncDisposable asyncProvider)
-            asyncProvider.DisposeAsync().AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
-        else
-            _serviceProvider?.Dispose();
-        _serviceProvider = null;
+            // ServiceProvider muss per DisposeAsync freigegeben werden, wenn Singletons IAsyncDisposable implementieren.
+            if (_serviceProvider is IAsyncDisposable asyncProvider)
+                asyncProvider.DisposeAsync().AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
+            else
+                _serviceProvider?.Dispose();
+            _serviceProvider = null;
+        }
+        catch (Exception ex)
+        {
+            // Nur der Typ — die Message koennte Nutzerdaten enthalten.
+            _logger?.LogError("Cleanup failed: {Type}", ex.GetType().Name);
+        }
+        finally
+        {
+            // Erst hier: Solange die alte Instanz noch Hotkey und Modell haelt, darf keine
+            // neue starten.
+            try { _mutex?.ReleaseMutex(); } catch { /* not owned by this thread */ }
+            _mutex?.Dispose();
+            _mutex = null;
 
-        try { _mutex?.ReleaseMutex(); } catch { /* not owned by this thread */ }
-        _mutex?.Dispose();
-
-        Shutdown(0);
+            Shutdown(0);
+        }
     }
 
     private static void ShowTemporaryBalloon(string message)

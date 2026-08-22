@@ -5,7 +5,7 @@
 **Stand:** 22. August 2026
 **Version:** siehe `<Version>` in `Schnack/Schnack.csproj`
 **Repo:** `ha-lamb/Schnack` (**public** seit 19.08.2026, MIT), `main` synchron
-**Build/Tests:** grün (149 Tests), keine Warnungen
+**Build/Tests:** grün (167 Tests), keine Warnungen
 **Release:** **v1.6.1 (22.08.2026)** — Fehlerbehebung an der Glättung; keine offenen Feature-Wünsche
 **Vorgänger:** v1.6.0 (21.08.2026). Das Full-Paket der **jeweils letzten** Version bleibt in `releases/` als Delta-Basis erhalten — derzeit `Schnack-1.6.1-full.nupkg`.
 
@@ -37,6 +37,16 @@ Wortgleiches Transkript, Faktor 23. Das Vorladen beim Start nimmt dem ersten Dik
 ### Glättung hielt sich nicht zurück (08/2026, v1.6.1)
 
 Im Alltagsgebrauch kamen beim Glätten zunehmend inhaltliche Änderungen und Ergänzungen dazu. Ursache war **nicht** der Wortlaut der Prompts, sondern ein fehlender Parameter: `ClaudeService` setzte gar keine Temperatur, Anthropic legt ohne Angabe **1,0** an — das Maximum. Behoben durch Temperatur 0, Regeln im `system`-Feld, eingefasstes Transkript und entschärfte Prompts. Am echten Modell gegengeprüft: 168 Zeichen rein, 168 raus; eine diktierte Frage kommt korrigiert zurück statt beantwortet.
+
+### Halluzinierte Floskeln auf Stille (08/2026, v1.6.2)
+
+Nach dem Glättungs-Fix hängte Schnack „vielen Dank" an ein langes Diktat. Der erste Verdacht — wieder die Glättung — war **falsch**: Ein Gegentest mit 590 Zeichen nachrichtenartigem Text ergab dreimal identisch nichts Hinzugefügtes. Die Ursache liegt in der Spracherkennung, die auf sprachfreien Abschnitten Untertitel-Floskeln erfindet. Am Nachbau mit Raumklang reproduziert und über `SegmentFilter` behoben. Messwerte und die drei verworfenen Alternativen stehen in `CLAUDE.md`.
+
+Lehre fürs nächste Mal: Erst reproduzieren, dann reparieren. Digitale Stille und weißes Rauschen lösen die Halluzination **nicht** aus — nötig war tiefpassgefiltertes Rauschen mit Netzbrummen, also echter Raumklang.
+
+### Unsichtbarer Prozess nach dem Beenden (08/2026, v1.6.2)
+
+„Schnack läuft bereits" beim Start, obwohl nichts zu sehen war — und es lief tatsächlich. Beim Beenden über das Tray-Menü warf `WhisperLocalTranscriptionService.DisposeAsync` eine `ObjectDisposedException`, weil der Container die Instanz wegen der beiden Weiterleitungs-Registrierungen mehrfach entsorgt. Die Ausnahme übersprang Mutex-Freigabe und `Shutdown(0)`; das Tray-Symbol war da schon weg, der Prozess blieb. Behoben an beiden Enden: `DisposeAsync` ist jetzt mehrfach aufrufbar, und `CleanupAndShutdown` gibt den Mutex im `finally` frei. Regressionstest in `ServiceRegistrationTests` — er schlug gegen den alten Stand fehl.
 
 ### Zwei Befunde, die man teuer neu entdecken würde
 

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Schnack.Models;
 using Schnack.Services;
@@ -40,5 +41,51 @@ public class ServiceRegistrationTests
         // Wirft, wenn der Schlüssel nicht registriert ist — genau der Fehler, der sonst erst
         // beim Diktieren aufträte.
         Assert.NotNull(provider.GetRequiredKeyedService<IPostProcessingService>(key));
+    }
+
+    // ── Entsorgung ─────────────────────────────────────────────────────────
+    //
+    // Die drei Registrierungen des Whisper-Dienstes zeigen bewusst auf DIESELBE Instanz —
+    // sonst laege das Modell doppelt im Speicher. Der Container erfasst aber jede realisierte
+    // Faktor-Instanz einzeln zum Entsorgen und ruft DisposeAsync entsprechend mehrfach auf.
+    // Warf der zweite Aufruf, uebersprang App.CleanupAndShutdown die Mutex-Freigabe und
+    // Shutdown(0): Der Prozess lief unsichtbar weiter und blockierte jeden neuen Start.
+
+    private static ServiceCollection WhisperRegistrations()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(Mock.Of<ISettingsService>(s => s.Settings == new AppSettings()));
+        services.AddSingleton(Mock.Of<IWhisperModelDownloadService>());
+        services.AddSingleton(Mock.Of<ILogger<WhisperLocalTranscriptionService>>());
+
+        // Wortgleich mit App.BuildServiceProvider.
+        services.AddSingleton<WhisperLocalTranscriptionService>();
+        services.AddSingleton<ITranscriptionService>(sp => sp.GetRequiredService<WhisperLocalTranscriptionService>());
+        services.AddSingleton<IWhisperWarmup>(sp => sp.GetRequiredService<WhisperLocalTranscriptionService>());
+        return services;
+    }
+
+    [Fact]
+    public async Task DisposingTheProvider_DoesNotThrow_DespiteForwardedRegistrations()
+    {
+        var provider = WhisperRegistrations().BuildServiceProvider();
+
+        // Alle drei Sichten aufloesen — erst dann steht die Instanz mehrfach in der
+        // Entsorgungsliste des Containers.
+        provider.GetRequiredService<WhisperLocalTranscriptionService>();
+        provider.GetRequiredService<ITranscriptionService>();
+        provider.GetRequiredService<IWhisperWarmup>();
+
+        await provider.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task DisposeAsync_IsIdempotent()
+    {
+        await using var provider = WhisperRegistrations().BuildServiceProvider();
+        var service = provider.GetRequiredService<WhisperLocalTranscriptionService>();
+
+        await service.DisposeAsync();
+        await service.DisposeAsync();
     }
 }

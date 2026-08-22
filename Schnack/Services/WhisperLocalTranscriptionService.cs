@@ -27,6 +27,13 @@ public sealed class WhisperLocalTranscriptionService : ITranscriptionService, IW
     private bool _loadedUseGpu;
     private readonly SemaphoreSlim _factoryLock = new(1, 1);
 
+    // Der Dienst steht dreimal im Container (konkreter Typ plus die Weiterleitungen fuer
+    // ITranscriptionService und IWhisperWarmup — bewusst dieselbe Instanz, sonst laege das
+    // Modell doppelt im Speicher). Der Container erfasst jede dieser Aufloesungen einzeln
+    // und ruft DisposeAsync entsprechend mehrfach auf. Ohne diese Sperre lief der zweite
+    // Aufruf in ein bereits entsorgtes Semaphor.
+    private int _disposed;
+
     public WhisperLocalTranscriptionService(
         ISettingsService settings,
         IWhisperModelDownloadService downloadService,
@@ -56,12 +63,24 @@ public sealed class WhisperLocalTranscriptionService : ITranscriptionService, IW
         var audioSeconds = Math.Max(0, fileStream.Length - WavHeaderBytes) / (double)BytesPerSecond;
         var started = Stopwatch.GetTimestamp();
 
-        var segments = new System.Text.StringBuilder();
+        var segments = new List<SpeechSegment>();
         await foreach (var segment in processor.ProcessAsync(fileStream, ct))
-            segments.Append(segment.Text);
+            segments.Add(new SpeechSegment(segment.Text, segment.Probability));
 
         var elapsed = Stopwatch.GetElapsedTime(started);
-        var text = segments.ToString().Trim();
+
+        // Aus Stille erfundene Floskeln aussortieren, bevor sie in den Text gelangen.
+        var filtered = SegmentFilter.Apply(segments);
+        if (filtered.DroppedProbabilities.Count > 0)
+        {
+            _logger.LogInformation(
+                "Discarded {Count} of {Total} segment(s) below the speech-probability threshold {Threshold} " +
+                "(values: {Values}) - most likely hallucinated from silence",
+                filtered.DroppedProbabilities.Count, segments.Count, SegmentFilter.MinProbability,
+                string.Join(", ", filtered.DroppedProbabilities.Select(p => p.ToString("F3"))));
+        }
+
+        var text = filtered.Text.Trim();
 
         // Der Realtime-Faktor ist der einzige Wert, der Konfigurationen vergleichbar macht.
         // Die Audiodauer stammt aus der Dateigröße und hat keinen Inhaltsbezug.
@@ -87,6 +106,9 @@ public sealed class WhisperLocalTranscriptionService : ITranscriptionService, IW
         var builder = (GreedySamplingStrategyBuilder)factory.CreateBuilder()
             .WithLanguage(settings.DictationLanguage.ToIsoCode())
             .WithThreads(threads)
+            // Ohne diese Option bleibt SegmentData.Probability auf 0 — gemessen, nicht vermutet.
+            // Der Segmentfilter haengt daran.
+            .WithProbabilities()
             .WithGreedySamplingStrategy();
         var processorBuilder = builder.WithBestOf(1).ParentBuilder;
 
@@ -214,6 +236,11 @@ public sealed class WhisperLocalTranscriptionService : ITranscriptionService, IW
 
     public async ValueTask DisposeAsync()
     {
+        // Interlocked statt eines bool: Beim Herunterfahren koennen zwei Aufrufe gleichzeitig
+        // eintreffen, und der zweite darf das Semaphor nicht mehr anfassen.
+        if (Interlocked.Exchange(ref _disposed, 1) == 1)
+            return;
+
         await _factoryLock.WaitAsync();
         try
         {
