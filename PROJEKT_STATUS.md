@@ -7,7 +7,7 @@
 **Repo:** `ha-lamb/Schnack` (**public** seit 19.08.2026, MIT), `main` synchron
 **Build/Tests:** grün (149 Tests), keine Warnungen
 **Release:** **v1.6.1 (22.08.2026)** — Fehlerbehebung an der Glättung; keine offenen Feature-Wünsche
-**Vorgänger:** v1.6.0 (21.08.2026) — dessen Full-Paket bleibt in `releases/` als Delta-Basis erhalten
+**Vorgänger:** v1.6.0 (21.08.2026). Das Full-Paket der **jeweils letzten** Version bleibt in `releases/` als Delta-Basis erhalten — derzeit `Schnack-1.6.1-full.nupkg`.
 
 ---
 
@@ -63,7 +63,8 @@ Keine Feature-Wünsche offen. Was an technischen Punkten bewusst liegen bleibt:
 - [x] Erster GitHub-Release (v1.3.2, 19.08.2026).
 - [x] Repo public gestellt (19.08.2026) — In-App-Update-Check damit funktionsfähig.
 - [x] Update-Mechanismus verifiziert (20.08.2026): v1.3.2 → v1.5.1 über Benachrichtigung, Delta-Download (116 KB) und Neustart.
-- [x] **Update auf v1.6.0 verifiziert (21.08.2026):** Sprung von der installierten v1.5.1 durchgelaufen — samt Settings-Migration auf Schema 4 im echten Update-Pfad. Das Delta war mit 28 MB ausnahmsweise fast so groß wie ein Vollpaket, weil die Vulkan-Runtime komplett neu dazukam; ab dem nächsten Release sind die Deltas wieder klein.
+- [x] **Update auf v1.6.0 verifiziert (21.08.2026):** Sprung von der installierten v1.5.1 durchgelaufen — samt Settings-Migration auf Schema 4 im echten Update-Pfad. Das Delta war mit 28 MB ausnahmsweise fast so groß wie ein Vollpaket, weil die Vulkan-Runtime komplett neu dazukam.
+- [x] **v1.6.1 veröffentlicht und Update verifiziert (22.08.2026):** Delta wieder klein — **63 KB**, weil Velopack nur 6 von 62 Dateien patchen musste. Damit ist belegt, dass der 28-MB-Ausreißer einmalig war.
 
 ---
 
