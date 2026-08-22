@@ -62,11 +62,9 @@ Keine Feature-Wünsche offen. Was an technischen Punkten bewusst liegen bleibt:
 - Der Modell-Download nutzt den namenlosen `HttpClient` mit 100 s Standard-Timeout — für 1,6 GB auf langsamer Leitung zu knapp. Kein Resume, kein Abbrechen.
 - Ob Beam Search gegenüber Greedy lohnt, ist nicht gegengemessen. Ohne Glättung wiegt Erkennungsgenauigkeit schwerer als sonst.
 - Sprachwechsel im Einstellungsdialog wirkt erst beim nächsten Öffnen (Texte kommen über `{x:Static}`).
-- Der Hotkey-Fehlertext in `App.OnSettingsRequested` ist hart auf Deutsch verdrahtet, während der gleichlautende Text beim Start lokalisiert ist.
 - `SaveAsync`-Fehler der Settings sind nur im Log sichtbar (fire-and-forget).
 - Theoretisches Schreibrennen zwischen Floating-Button-Positionsspeicherung und Settings-Dialog (last-write-wins, praktisch irrelevant).
 - `ClaudeProcessResult` heißt anbieterlastig, wird aber von allen Nachbearbeitungs-Diensten geliefert (Umbenennung wäre Geschmacksfrage).
-- Unter `.claude/worktrees/frosty-jemison-035652/` liegt eine veraltete Projektkopie aus einer früheren Sitzung — aufzuräumen.
 
 ### Erledigt
 
@@ -76,6 +74,7 @@ Keine Feature-Wünsche offen. Was an technischen Punkten bewusst liegen bleibt:
 - [x] **Update auf v1.6.0 verifiziert (21.08.2026):** Sprung von der installierten v1.5.1 durchgelaufen — samt Settings-Migration auf Schema 4 im echten Update-Pfad. Das Delta war mit 28 MB ausnahmsweise fast so groß wie ein Vollpaket, weil die Vulkan-Runtime komplett neu dazukam.
 - [x] **v1.6.1 veröffentlicht und Update verifiziert (22.08.2026):** Delta wieder klein — **63 KB**, weil Velopack nur 6 von 62 Dateien patchen musste. Damit ist belegt, dass der 28-MB-Ausreißer einmalig war.
 - [x] **v1.6.2 veröffentlicht (22.08.2026):** Delta 62 KB, 6 von 62 Dateien gepatcht — dieselbe Größenordnung wie bei v1.6.1.
+- [x] **Veraltete Worktree-Kopie entfernt (22.08.2026):** 25 MB unter `.claude/worktrees/`. Der Branch enthielt noch einen ungenutzten Fix — der lokalisierte Hotkey-Fehlertext in `App.OnSettingsRequested` — der vorher nach `main` übernommen wurde; der Rest des Branches (Versionsstand 1.5.2) war überholt.
 
 ---
 

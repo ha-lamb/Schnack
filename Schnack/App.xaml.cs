@@ -405,7 +405,8 @@ public partial class App : Application
                 catch (Exception ex)
                 {
                     _logger?.LogError(ex.GetType().Name + ": Failed to re-register hotkey");
-                    _trayService?.ShowBalloonTip("Schnack", $"Hotkey '{newHotkey}' konnte nicht registriert werden.");
+                    _trayService?.ShowBalloonTip(Strings.Balloon_AppTitle,
+                        Strings.Format(nameof(Strings.Startup_HotkeyFailed), newHotkey));
                 }
             }
         });
