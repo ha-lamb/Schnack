@@ -48,9 +48,16 @@ public sealed class OpenAiChatService : IPostProcessingService
         var requestBody = new ChatRequest
         {
             Model = model,
-            Messages = [new ChatMessage { Role = "user", Content = prompt }],
+            // Regeln als System-Nachricht, Transkript als Nutzernachricht — so kann der diktierte
+            // Text nicht als Anweisung gelesen werden.
+            Messages =
+            [
+                new ChatMessage { Role = "system", Content = prompt.System },
+                new ChatMessage { Role = "user", Content = prompt.UserContent }
+            ],
             MaxTokens = _settings.Settings.OpenAiChatMaxTokens,
-            Temperature = 0.1f
+            // 0 statt 0,1: Glätten ist eine analytische Aufgabe, keine kreative.
+            Temperature = 0f
         };
         var requestJson = JsonSerializer.Serialize(requestBody, JsonOptions);
 

@@ -2,12 +2,12 @@
 
 > Lebendige Status-Übersicht: aktueller Arbeitsstand und offene Punkte. Architektur und Konventionen stehen in `CLAUDE.md`.
 
-**Stand:** 21. August 2026
+**Stand:** 22. August 2026
 **Version:** siehe `<Version>` in `Schnack/Schnack.csproj`
 **Repo:** `ha-lamb/Schnack` (**public** seit 19.08.2026, MIT), `main` synchron
-**Build/Tests:** grün (142 Tests), keine Warnungen
-**Release:** **v1.6.0 (21.08.2026)** — vom Maintainer als vorläufiger Endstand erklärt, keine offenen Feature-Wünsche
-**Vorgänger:** v1.5.1 (20.08.2026) — dessen Full-Paket bleibt in `releases/` als Delta-Basis erhalten
+**Build/Tests:** grün (149 Tests), keine Warnungen
+**Release:** **v1.6.1 (22.08.2026)** — Fehlerbehebung an der Glättung; keine offenen Feature-Wünsche
+**Vorgänger:** v1.6.0 (21.08.2026) — dessen Full-Paket bleibt in `releases/` als Delta-Basis erhalten
 
 ---
 
@@ -33,6 +33,10 @@ Gemessen auf RTX 5070 Ti, `large-v3-turbo`, 26,9 s Audio:
 | **Vulkan** | **295 ms** | **0,011** |
 
 Wortgleiches Transkript, Faktor 23. Das Vorladen beim Start nimmt dem ersten Diktat weitere 4749 ms ab. Zeitmessung und Realtime-Faktor stehen im Log — vorher gab es im Projekt keine einzige Messung.
+
+### Glättung hielt sich nicht zurück (08/2026, v1.6.1)
+
+Im Alltagsgebrauch kamen beim Glätten zunehmend inhaltliche Änderungen und Ergänzungen dazu. Ursache war **nicht** der Wortlaut der Prompts, sondern ein fehlender Parameter: `ClaudeService` setzte gar keine Temperatur, Anthropic legt ohne Angabe **1,0** an — das Maximum. Behoben durch Temperatur 0, Regeln im `system`-Feld, eingefasstes Transkript und entschärfte Prompts. Am echten Modell gegengeprüft: 168 Zeichen rein, 168 raus; eine diktierte Frage kommt korrigiert zurück statt beantwortet.
 
 ### Zwei Befunde, die man teuer neu entdecken würde
 

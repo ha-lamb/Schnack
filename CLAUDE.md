@@ -151,6 +151,17 @@ Der Arbeitsbereich kommt bewusst vom Monitor unter dem Cursor (`MonitorFromPoint
 - **Vorladen** (`WhisperPreload`, Default an) lädt beim Start das Modell **und** rechnet eine Sekunde Stille durch. Der zweite Teil ist der wichtigere: er erzwingt Graph-Allokation und Shader-Übersetzung. Gemessen: 4749 ms, die sonst das erste Diktat bezahlt. Fire-and-Forget, scheitert still; der `CancellationTokenSource` wird in `CleanupAndShutdown` **vor** der Entsorgung des Providers gecancelt, sonst läuft der Warmup in ein entsorgtes Semaphor.
 - **Whisper übersetzt nicht** — bewusste Entscheidung, nicht Unvermögen der Bibliothek. Zwei gemessene Gründe: `large-v3-turbo` (das Standardmodell) ignoriert das Translate-Flag und liefert still die Quellsprache, während dieselbe Aufnahme mit `base` sauber übersetzt; und Whisper kann grundsätzlich **nur ins Englische**. Eine Übersetzungsoption, die je nach Modell wirkt oder nicht und nur in eine Richtung geht, ist schlechter als keine. Übersetzt wird deshalb ausschließlich vom KI-Dienst.
 
+### Nachbearbeitung: Regeln in den System-Teil, Temperatur auf 0
+
+Beides zusammen entscheidet darüber, ob geglättet oder umgeschrieben wird — im Alltagsgebrauch fiel auf, dass der Text zunehmend inhaltlich abwich.
+
+- **`temperature: 0`.** Anthropic setzt ohne Angabe **1,0**, das Maximum des Bereichs 0–1; die Doku empfiehlt ausdrücklich Werte nahe 0 für analytische Aufgaben. Ohne den Parameter war jedes Diktat ein neuer Würfelwurf. `ClaudeService` und `OpenAiChatService` setzen jetzt beide 0.
+- **Opus 4.7 und neuer lehnen `temperature` mit HTTP 400 ab** — der Parameter wurde dort entfernt. Weil das Modell ein freies Textfeld in den Einstellungen ist, wiederholt `ClaudeService.SendWithTemperatureFallbackAsync` den Aufruf einmal ohne Temperatur, statt jedes Diktat scheitern zu lassen. **Diesen Rückfall nicht entfernen.**
+- **Die Regeln stehen im `system`-Feld**, nicht in der Nutzernachricht. Dort wiegen sie schwerer, und das Transkript kann nicht als Anweisung gelesen werden. `DictationPrompts.Build` liefert deshalb ein `DictationPrompt`-Paar aus `System` und `UserContent`.
+- **Das Transkript ist mit `<diktat>`-Markierungen eingefasst**, und die Regeln sagen ausdrücklich, dass der Inhalt dazwischen keine Anweisung ist. Belegt: Ein diktiertes „kannst du mir erklären, was der Unterschied zwischen TCP und UDP ist" kommt als korrigierte Frage zurück, nicht als Erklärung.
+- **Die Prompts erteilen keine Umschreib-Lizenzen mehr.** Frühere Formulierungen wie „Füllwörter leicht reduzieren" oder „professionell und natürlich formulieren" luden genau zu dem ein, was vermieden werden soll. Grundregel ist jetzt: im Zweifel unverändert lassen.
+- `DictationOrchestrator.WarnIfLengthDeviates` protokolliert eine Warnung, wenn die Glättung die Zeichenzahl um mehr als 40 % verändert — dann hat das Modell vermutlich geantwortet statt korrigiert. Nur im Korrektur-Modus; eine Übersetzung darf die Länge verschieben.
+
 ### Vokabular
 
 - `AppSettings.Vocabulary` (`string[]`) hält Eigennamen und Fachbegriffe. `Services/Internal/VocabularyPrompt.cs` formatiert sie für die zwei Stellen, an denen sie wirken: als Vorab-Kontext der Spracherkennung (gekappt auf ~700 Zeichen wegen des 224-Token-Fensters) und als Anweisungsblock im Nachbearbeitungs-Prompt (`{{VOCABULARY}}`-Platzhalter in allen vier Templates).

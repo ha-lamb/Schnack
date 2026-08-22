@@ -171,6 +171,9 @@ public sealed class DictationOrchestrator : IDictationOrchestrator
             _logger.LogDebug("Post-processing finished in {Ms} ms",
                 (long)Stopwatch.GetElapsedTime(phaseStarted).TotalMilliseconds);
 
+            if (effectiveMode == DictationMode.Correct)
+                WarnIfLengthDeviates(transcript, result.Text);
+
             _logger.LogDebug("Text insertion phase");
             if (_cachedTargetHwnd == 0)
             {
@@ -215,6 +218,30 @@ public sealed class DictationOrchestrator : IDictationOrchestrator
             _trayService.UpdateState(RecordingState.Idle);
             _floatingRecordUi.SetRecordingState(RecordingState.Idle);
         }
+    }
+
+    /// <summary>
+    /// Glätten darf die Länge kaum verändern. Weicht sie stark ab, hat das Sprachmodell
+    /// vermutlich geantwortet statt korrigiert oder etwas weggelassen — beim Gegenlesen ist das
+    /// leicht zu übersehen, im Log nicht.
+    /// Nur bei Korrektur sinnvoll: eine Übersetzung darf die Länge verschieben.
+    /// Geloggt werden ausschließlich Zeichenzahlen, nie Inhalt.
+    /// </summary>
+    private void WarnIfLengthDeviates(string transcript, string result)
+    {
+        // Kurze Diktate schwanken relativ stark; der Sockel verhindert Fehlalarme.
+        const int MinLength = 40;
+        if (transcript.Length < MinLength)
+            return;
+
+        var ratio = result.Length / (double)transcript.Length;
+        if (ratio is >= 0.6 and <= 1.4)
+            return;
+
+        _logger.LogWarning(
+            "Smoothing changed the length unexpectedly: {Before} -> {After} chars (factor {Ratio:F2}). " +
+            "The model may have answered instead of correcting.",
+            transcript.Length, result.Length, ratio);
     }
 
     /// <summary>Einmal pro Sitzung darauf hinweisen, dass ohne Schlüssel nicht geglättet wird.</summary>

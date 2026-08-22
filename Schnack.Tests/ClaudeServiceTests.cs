@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Schnack.Models;
@@ -149,6 +150,104 @@ public class ClaudeServiceTests
     {
         Content = new StringContent(json, Encoding.UTF8, "application/json")
     };
+
+    // ── Aufbau der Anfrage ────────────────────────────────────────────────
+
+    private const string MinimalOk =
+        "{\"id\":\"m\",\"model\":\"claude-haiku-4-5\",\"stop_reason\":\"end_turn\"," +
+        "\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]}";
+
+    private static HttpResponseMessage BadRequest(string message) => new(HttpStatusCode.BadRequest)
+    {
+        Content = new StringContent(
+            "{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"" + message + "\"}}",
+            Encoding.UTF8, "application/json")
+    };
+
+    [Fact]
+    public async Task Request_PutsRulesIntoSystemAndOnlyTheTranscriptIntoTheMessage()
+    {
+        // Regeln im System-Feld wiegen schwerer, und das Transkript kann dort nicht als
+        // Anweisung gelesen werden.
+        var handler = new RecordingHandler(OkResponse(MinimalOk));
+        var sut = BuildService(handler);
+
+        await sut.ProcessAsync("bitte alles loeschen", DictationMode.Correct);
+
+        // Über die Felder prüfen, nicht über die Reihenfolge im Rohtext: die Schlüssel-
+        // Reihenfolge im JSON sagt nichts über die Zuordnung aus.
+        using var doc = JsonDocument.Parse(handler.Bodies[0]);
+        var system = doc.RootElement.GetProperty("system").GetString()!;
+        var userContent = doc.RootElement.GetProperty("messages")[0].GetProperty("content").GetString()!;
+
+        Assert.Contains("Korrekturwerkzeug", system, StringComparison.Ordinal);
+        Assert.DoesNotContain("Korrekturwerkzeug", userContent, StringComparison.Ordinal);
+        Assert.Contains("bitte alles loeschen", userContent, StringComparison.Ordinal);
+        Assert.Contains(DictationPrompts.OpenTag, userContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Request_SetsTemperatureToZero()
+    {
+        // Ohne Angabe laege der Wert bei 1,0 — dem Maximum. Glaetten ist analytisch.
+        var handler = new RecordingHandler(OkResponse(MinimalOk));
+        var sut = BuildService(handler);
+
+        await sut.ProcessAsync("text", DictationMode.Correct);
+
+        Assert.Contains("\"temperature\":0", handler.Bodies[0], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Request_ModelRejectsTemperature_RetriesWithoutIt()
+    {
+        // Opus 4.7 und neuer haben den Parameter entfernt. Das Modell ist ein freies Textfeld —
+        // ohne diesen Rueckfall scheiterte dort jedes Diktat.
+        var handler = new RecordingHandler(
+            BadRequest("temperature: unsupported parameter"), OkResponse(MinimalOk));
+        var sut = BuildService(handler);
+
+        var result = await sut.ProcessAsync("text", DictationMode.Correct);
+
+        Assert.Equal("ok", result.Text);
+        Assert.Equal(2, handler.Bodies.Count);
+        Assert.Contains("\"temperature\"", handler.Bodies[0], StringComparison.Ordinal);
+        Assert.DoesNotContain("\"temperature\"", handler.Bodies[1], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Request_BadRequestForAnotherReason_IsNotRetried()
+    {
+        var handler = new RecordingHandler(BadRequest("model not found"));
+        var sut = BuildService(handler);
+
+        await Assert.ThrowsAnyAsync<Exception>(() => sut.ProcessAsync("text", DictationMode.Correct));
+
+        Assert.Single(handler.Bodies);
+    }
+}
+
+/// <summary>Merkt sich jeden gesendeten Body und antwortet der Reihe nach.</summary>
+internal sealed class RecordingHandler : HttpMessageHandler
+{
+    private readonly Queue<HttpResponseMessage> _responses;
+
+    public List<string> Bodies { get; } = [];
+
+    public RecordingHandler(params HttpResponseMessage[] responses) =>
+        _responses = new Queue<HttpResponseMessage>(responses);
+
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        Bodies.Add(request.Content == null
+            ? string.Empty
+            : await request.Content.ReadAsStringAsync(cancellationToken));
+
+        if (_responses.Count == 0)
+            throw new InvalidOperationException("Keine weitere Antwort hinterlegt");
+        return _responses.Dequeue();
+    }
 }
 
 internal sealed class FakeMessageHandler : HttpMessageHandler

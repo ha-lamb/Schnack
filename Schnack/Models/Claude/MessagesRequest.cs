@@ -21,4 +21,22 @@ public record MessagesRequest
 
     [JsonPropertyName("messages")]
     public MessageItem[] Messages { get; init; } = [];
+
+    /// <summary>
+    /// Regeln gehören hierhin, nicht in die Nutzernachricht: das System-Feld wiegt schwerer,
+    /// und das Transkript kann so nicht als Anweisung missverstanden werden.
+    /// </summary>
+    [JsonPropertyName("system")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? System { get; init; }
+
+    /// <summary>
+    /// 0 für die Nachbearbeitung — sie ist eine analytische Aufgabe. Ohne Angabe läge der Wert
+    /// bei 1,0, dem Maximum, und jedes Diktat wäre ein neuer Würfelwurf.
+    /// Achtung: Opus 4.7 und neuer lehnen das Feld mit HTTP 400 ab; ClaudeService wiederholt
+    /// den Aufruf dann ohne Temperatur.
+    /// </summary>
+    [JsonPropertyName("temperature")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? Temperature { get; init; }
 }

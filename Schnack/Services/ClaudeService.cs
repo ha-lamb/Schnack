@@ -43,27 +43,13 @@ public sealed class ClaudeService : IPostProcessingService
         var settings = _settingsService.Settings;
         var prompt = DictationPrompts.Build(settings.DictationLanguage, mode, transcript, settings.Vocabulary);
 
-        var request = new MessagesRequest
-        {
-            Model = settings.ClaudeModel,
-            MaxTokens = settings.ClaudeMaxTokens,
-            Messages = [new MessageItem { Role = "user", Content = prompt }]
-        };
-        var requestJson = JsonSerializer.Serialize(request, JsonOptions);
-
         using var client = _httpClientFactory.CreateClient("Claude");
         client.DefaultRequestHeaders.Add("x-api-key", apiKey);
         client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
 
         _logger.LogInformation("Sending request to Claude API, model: {Model}", settings.ClaudeModel);
 
-        using var response = await HttpRetry.SendAsync(
-            async innerCt =>
-            {
-                using var content = new StringContent(requestJson, Encoding.UTF8, "application/json");
-                return await client.PostAsync("v1/messages", content, innerCt);
-            },
-            _logger, "Claude", ct);
+        using var response = await SendWithTemperatureFallbackAsync(client, settings, prompt, ct);
 
         _logger.LogInformation("Claude API response status: {StatusCode}", (int)response.StatusCode);
 
@@ -92,6 +78,54 @@ public sealed class ClaudeService : IPostProcessingService
 
         var truncated = string.Equals(parsed.StopReason, "max_tokens", StringComparison.Ordinal);
         return new ClaudeProcessResult(text, truncated);
+    }
+
+    /// <summary>
+    /// Schickt die Anfrage mit <c>temperature: 0</c> — Nachbearbeitung ist eine analytische
+    /// Aufgabe, und ohne Angabe läge der Wert bei 1,0.
+    /// Opus 4.7 und neuer haben den Parameter entfernt und antworten mit HTTP 400. Weil das
+    /// Modell ein freies Textfeld in den Einstellungen ist, wird der Aufruf dann einmal ohne
+    /// Temperatur wiederholt, statt jedes Diktat scheitern zu lassen.
+    /// </summary>
+    private async Task<HttpResponseMessage> SendWithTemperatureFallbackAsync(
+        HttpClient client, AppSettings settings, DictationPrompt prompt, CancellationToken ct)
+    {
+        var response = await SendOnceAsync(client, settings, prompt, temperature: 0, ct);
+
+        if (response.StatusCode != HttpStatusCode.BadRequest)
+            return response;
+
+        // Nur den Hinweis auf das Feld suchen — der Fehlertext selbst wird nie geloggt.
+        var body = await response.Content.ReadAsStringAsync(ct);
+        if (!body.Contains("temperature", StringComparison.OrdinalIgnoreCase))
+            return response;
+
+        response.Dispose();
+        _logger.LogWarning(
+            "Model {Model} rejected the temperature parameter, retrying without it", settings.ClaudeModel);
+        return await SendOnceAsync(client, settings, prompt, temperature: null, ct);
+    }
+
+    private async Task<HttpResponseMessage> SendOnceAsync(
+        HttpClient client, AppSettings settings, DictationPrompt prompt, double? temperature, CancellationToken ct)
+    {
+        var request = new MessagesRequest
+        {
+            Model = settings.ClaudeModel,
+            MaxTokens = settings.ClaudeMaxTokens,
+            System = prompt.System,
+            Temperature = temperature,
+            Messages = [new MessageItem { Role = "user", Content = prompt.UserContent }]
+        };
+        var requestJson = JsonSerializer.Serialize(request, JsonOptions);
+
+        return await HttpRetry.SendAsync(
+            async innerCt =>
+            {
+                using var content = new StringContent(requestJson, Encoding.UTF8, "application/json");
+                return await client.PostAsync("v1/messages", content, innerCt);
+            },
+            _logger, "Claude", ct);
     }
 
 }
